@@ -27,6 +27,7 @@ def normalize_ocr_data(raw_ocr: list[dict]) -> dict:
     for i, item in enumerate(raw_ocr):
         regions.append({
             "id": i,
+            "image_index": item.get("image_index", 0),
             "text": norm(item.get("text", "")),
             "confidence": item.get("confidence"),
             "bbox": item.get("bbox"),
@@ -61,7 +62,12 @@ def normalize_ocr_data(raw_ocr: list[dict]) -> dict:
 
     usp_region = find_best(regions, r"(?:RS\.?|₹)\s*[0-9]+(?:[.,][0-9]+)?\s+PER\s+(?:G|KG|ML|L|LITRE|LITER|CM|M|UNIT|NUMBER|NO\.?\b)")
 
-    date_region = find_best(regions, r"(?:PKD|PACKED|MFG|MANUFACT(?:URED)?|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)\b.*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}")
+    # Date regex: standard delimited dates AND dot-matrix compressed dates preceded by explicit date keywords
+    date_pattern = r"(?:PKD|PACKED|PACKING|MFG|MANUFACT(?:URED)?|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)[.:\s]*(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4,8})"
+    date_region = find_best(regions, date_pattern)
+    if not date_region:
+        # Fallback to standard delimited date anywhere near date keywords
+        date_region = find_best(regions, r"(?:PKD|PACKED|MFG|MANUFACT(?:URED)?|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)\b.*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}")
 
     associations = {
         "mrp_candidate": mrp,

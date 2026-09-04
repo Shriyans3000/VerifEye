@@ -5,10 +5,11 @@ import { analyzePackageLabel } from '../services/api';
 interface InspectionContextType {
   currentInspection: AnalyzeResponse | null;
   imageFile: File | null;
+  imageFiles: File[];
   isAnalyzing: boolean;
   errorMessage: string | null;
-  performAnalysis: (file: File) => Promise<boolean>;
-  setInspectionData: (data: AnalyzeResponse, file: File) => void;
+  performAnalysis: (files: File | File[]) => Promise<boolean>;
+  setInspectionData: (data: AnalyzeResponse, files: File | File[]) => void;
   clearSession: () => void;
 }
 
@@ -16,23 +17,24 @@ const InspectionContext = createContext<InspectionContextType | undefined>(undef
 
 export const InspectionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentInspection, setCurrentInspection] = useState<AnalyzeResponse | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const performAnalysis = async (file: File): Promise<boolean> => {
+  const performAnalysis = async (files: File | File[]): Promise<boolean> => {
     setIsAnalyzing(true);
     setErrorMessage(null);
-    setImageFile(file);
+    const arr = Array.isArray(files) ? files : [files];
+    setImageFiles(arr);
 
     try {
-      const response = await analyzePackageLabel(file);
+      const response = await analyzePackageLabel(arr);
       setCurrentInspection(response);
       return true;
     } catch (err: any) {
       console.error('Inspection analysis error in Context:', err);
       setErrorMessage(
-        err.message || 'Unable to analyze this image. Please try another clear package-label photograph.'
+        err.message || 'Unable to analyze the package images. Please try uploading clear label photographs.'
       );
       return false;
     } finally {
@@ -40,15 +42,16 @@ export const InspectionProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
-  const setInspectionData = (data: AnalyzeResponse, file: File) => {
+  const setInspectionData = (data: AnalyzeResponse, files: File | File[]) => {
     setCurrentInspection(data);
-    setImageFile(file);
+    const arr = Array.isArray(files) ? files : [files];
+    setImageFiles(arr);
     setErrorMessage(null);
   };
 
   const clearSession = () => {
     setCurrentInspection(null);
-    setImageFile(null);
+    setImageFiles([]);
     setErrorMessage(null);
     setIsAnalyzing(false);
   };
@@ -57,7 +60,8 @@ export const InspectionProvider: React.FC<{ children: ReactNode }> = ({ children
     <InspectionContext.Provider
       value={{
         currentInspection,
-        imageFile,
+        imageFile: imageFiles[0] || null,
+        imageFiles,
         isAnalyzing,
         errorMessage,
         performAnalysis,

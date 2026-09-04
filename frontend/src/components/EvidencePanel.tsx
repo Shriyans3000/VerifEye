@@ -144,10 +144,14 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                     className="p-2.5 bg-slate-50 border-l-4 border-amber-500 rounded border border-slate-200 shadow-2xs space-y-1.5"
                   >
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-slate-800 flex items-center">
-                        <Hash className="h-3 w-3 mr-0.5 text-amber-600" />
-                        Region #{item.ocr_id}
-                        {evidence.length > 1 && ` (Item ${idx + 1} of ${evidence.length})`}
+                      <span className="font-bold text-slate-800 flex items-center space-x-1.5">
+                        <span className="flex items-center">
+                          <Hash className="h-3 w-3 mr-0.5 text-amber-600" />
+                          Region #{item.ocr_id}
+                        </span>
+                        <span className="px-1.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-800 text-[9px] font-bold rounded">
+                          {item.image_index === 1 ? 'Image 2 (Back)' : 'Image 1 (Front)'}
+                        </span>
                       </span>
                       {item.confidence !== undefined && item.confidence !== null && (
                         <span className="font-mono text-[10px] bg-slate-200/80 text-slate-700 px-1.5 py-0.5 rounded flex items-center">

@@ -1,5 +1,6 @@
 export interface EvidenceItem {
   ocr_id: number;
+  image_index?: number;
   text: string;
   confidence: number;
   bbox: number[];

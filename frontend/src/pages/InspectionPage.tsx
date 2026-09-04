@@ -8,20 +8,24 @@ import { AlertCircle, FileCheck, ArrowRight } from 'lucide-react';
 export const InspectionPage: React.FC = () => {
   const navigate = useNavigate();
   const { performAnalysis, isAnalyzing, errorMessage, currentInspection } = useInspection();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const handleFileSelect = (file: File) => {
-    setSelectedFile(file);
+  const handleFilesSelect = (files: File[]) => {
+    setSelectedFiles(files);
   };
 
-  const handleClearFile = () => {
-    setSelectedFile(null);
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleClearAll = () => {
+    setSelectedFiles([]);
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
 
-    const success = await performAnalysis(selectedFile);
+    const success = await performAnalysis(selectedFiles);
     if (success) {
       navigate('/inspection/result');
     }
@@ -40,7 +44,7 @@ export const InspectionPage: React.FC = () => {
             Package Label Inspection Module
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Submit a packaged commodity photograph for automated statutory declaration audit under the Legal Metrology Rules, 2011.
+            Submit packaged commodity photograph(s) for automated statutory declaration audit under the Legal Metrology Rules, 2011.
           </p>
         </div>
 
@@ -73,9 +77,10 @@ export const InspectionPage: React.FC = () => {
       {/* Upload Zone */}
       {!isAnalyzing && (
         <UploadZone
-          onFileSelect={handleFileSelect}
-          selectedFile={selectedFile}
-          onClearFile={handleClearFile}
+          onFilesSelect={handleFilesSelect}
+          selectedFiles={selectedFiles}
+          onRemoveFile={handleRemoveFile}
+          onClearAll={handleClearAll}
           onAnalyze={handleAnalyze}
           disabled={isAnalyzing}
         />

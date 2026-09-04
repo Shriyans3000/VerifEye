@@ -24,29 +24,29 @@ def get_ocr_engine():
     if _OCR_INSTANCE is None:
         with _OCR_LOCK:
             if _OCR_INSTANCE is None:
-                logger.info("[OCR INIT START] Loading lightweight PaddleOCR mobile instance (single-threaded CPU)...")
-                _OCR_INSTANCE = PaddleOCR(
-                    lang="en",
-                    ocr_version="PP-OCRv4",
-                    use_doc_orientation_classify=False,
-                    use_doc_unwarping=False,
-                    use_textline_orientation=False,
-                    enable_mkldnn=False,
-                    cpu_threads=1
-                )
-                logger.info("[OCR INIT END] PaddleOCR mobile instance initialized successfully.")
+                logger.info("[OCR INIT START] Loading high-accuracy PaddleOCR instance (lang='en')...")
+                ocr_version = os.getenv("VERIFEYE_OCR_VERSION")
+                if ocr_version:
+                    _OCR_INSTANCE = PaddleOCR(lang="en", ocr_version=ocr_version)
+                else:
+                    _OCR_INSTANCE = PaddleOCR(lang="en")
+                logger.info("[OCR INIT END] PaddleOCR instance initialized successfully.")
     return _OCR_INSTANCE
 
 
-def run_ocr(image_path: str | Path, output_file: str | Path | None = None) -> list[dict]:
+def run_ocr(
+    image_path: str | Path,
+    output_file: str | Path | None = None,
+    image_index: int = 0
+) -> list[dict]:
     image_path = Path(image_path).resolve()
     if not image_path.exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
 
-    logger.info(f"[OCR PREDICT START] Initiating PaddleOCR prediction on: {image_path}")
+    logger.info(f"[OCR PREDICT START] Initiating PaddleOCR prediction on image_index={image_index}: {image_path}")
     ocr = get_ocr_engine()
     results = ocr.predict(str(image_path))
-    logger.info(f"[OCR PREDICT END] Raw OCR prediction finished for: {image_path}")
+    logger.info(f"[OCR PREDICT END] Raw OCR prediction finished for image_index={image_index}: {image_path}")
 
     output = []
     for result in results:
@@ -62,6 +62,7 @@ def run_ocr(image_path: str | Path, output_file: str | Path | None = None) -> li
 
         for text, score, box in zip(texts, scores, boxes):
             output.append({
+                "image_index": image_index,
                 "text": text,
                 "confidence": float(score),
                 "bbox": box.tolist() if hasattr(box, "tolist") else box

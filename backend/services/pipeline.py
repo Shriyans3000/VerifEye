@@ -8,28 +8,47 @@ from pipeline.compliance_engine import evaluate_compliance
 from backend.config import GROQ_API_KEY
 
 
-def analyze_image(image_path: str | Path) -> dict:
-    image_path = Path(image_path).resolve()
-    if not image_path.exists():
-        raise FileNotFoundError(f"Image file not found: {image_path}")
+def analyze_images(image_paths: list[str | Path]) -> dict:
+    if not image_paths:
+        raise ValueError("At least one image path must be provided.")
 
-    # 1. OCR Engine
-    ocr_result = run_ocr(image_path)
+    resolved_paths = []
+    for p in image_paths:
+        path_obj = Path(p).resolve()
+        if not path_obj.exists():
+            raise FileNotFoundError(f"Image file not found: {path_obj}")
+        resolved_paths.append(path_obj)
+
+    combined_ocr_result = []
+    region_counter = 0
+
+    # 1. Run OCR on each image and unify evidence tagged with image_index
+    for idx, path_obj in enumerate(resolved_paths):
+        raw_ocr = run_ocr(path_obj, image_index=idx)
+        for item in raw_ocr:
+            combined_ocr_result.append({
+                "id": region_counter,
+                "image_index": idx,
+                "text": item.get("text", ""),
+                "confidence": item.get("confidence"),
+                "bbox": item.get("bbox")
+            })
+            region_counter += 1
 
     # 2. OCR Normalization
-    normalized_data = normalize_ocr_data(ocr_result)
+    normalized_data = normalize_ocr_data(combined_ocr_result)
 
-    # 3. Groq Extraction
+    # 3. Groq Extraction & Canonical Normalization
     structured_product = extract_structured_product(
-        ocr_data=ocr_result,
+        ocr_data=combined_ocr_result,
         normalized_data=normalized_data,
         api_key=GROQ_API_KEY
     )
 
-    # 4. Compliance Engine
+    # 4. Deterministic Compliance Evaluation
     compliance_result = evaluate_compliance(structured_product)
 
-    # 5. Format JSON Response
+    # 5. Format Response
     return {
         "success": True,
         "status": compliance_result.get("overall_status", "REVIEW_REQUIRED"),
@@ -44,7 +63,12 @@ def analyze_image(image_path: str | Path) -> dict:
         "checks": compliance_result.get("checks", []),
         "validation_checks": compliance_result.get("validation_checks", []),
         "meta": {
-            "regions_detected": len(ocr_result),
+            "images_processed": len(resolved_paths),
+            "regions_detected": len(combined_ocr_result),
             "timestamp": datetime.utcnow().isoformat()
         }
     }
+
+
+def analyze_image(image_path: str | Path) -> dict:
+    return analyze_images([image_path])

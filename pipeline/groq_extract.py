@@ -10,6 +10,8 @@ from groq import Groq
 load_dotenv()
 
 
+from pipeline.canonical_normalize import canonical_normalize_product
+
 SYSTEM_PROMPT = """
 You are an information extraction engine for VerifEye,
 a system that analyzes Indian packaged commodity labels.
@@ -75,6 +77,7 @@ FIELD EXTRACTION RULES:
 18. EVIDENCE REQUIREMENT:
     For every extracted field, provide an evidence object containing:
     - ocr_id: ID of supporting OCR region
+    - image_index: image index (0 or 1) of supporting OCR region
     - text: exact supporting OCR text
     - confidence: confidence score
     - bbox: bounding box
@@ -126,6 +129,7 @@ FIELD EXTRACTION RULES:
 36. For every evidence object use EXACTLY this structure:
 {
   "ocr_id": 0,
+  "image_index": 0,
   "text": "exact supporting OCR text",
   "confidence": 0.995,
   "bbox": [x1, y1, x2, y2]
@@ -193,16 +197,11 @@ def extract_structured_product(
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not set.")
 
-    client = Groq(
-        api_key=api_key,
-        timeout=httpx.Timeout(120.0, connect=60.0),
-        max_retries=3,
-    )
-
     ocr_evidence = []
     for index, item in enumerate(ocr_data):
         ocr_evidence.append({
             "id": index,
+            "image_index": item.get("image_index", 0),
             "text": item.get("text", ""),
             "confidence": item.get("confidence"),
             "bbox": item.get("bbox")
@@ -211,7 +210,7 @@ def extract_structured_product(
     user_prompt = f"""
 Extract the product information from the following PaddleOCR evidence.
 
-Each OCR region has an ID. Use those IDs when creating evidence.
+Each OCR region has an ID and image_index (0 for Image 1 / Front, 1 for Image 2 / Back). Use those IDs and image_indices when creating evidence objects.
 
 OCR EVIDENCE:
 
@@ -222,12 +221,15 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
 """
 
     models_to_try = [
-        "openai/gpt-oss-120b"
+        "openai/gpt-oss-120b",
+        "groq/compound",
+        "groq/compound-mini",
+        "openai/gpt-oss-safeguard-20b"
     ]
     response = None
     last_err = None
     for model_name in models_to_try:
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 client = Groq(
                     api_key=api_key,
@@ -236,7 +238,7 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
                 )
                 response = client.chat.completions.create(
                     model=model_name,
-                    temperature=0,
+                    temperature=0.0,
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
@@ -247,7 +249,7 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
                     break
             except Exception as e:
                 last_err = e
-                time.sleep(2.0 * (attempt + 1))
+                time.sleep(1.5 * (attempt + 1))
         if response:
             break
 
@@ -256,7 +258,10 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
 
     result_text = response.choices[0].message.content
     structured_data = json.loads(result_text)
-    return structured_data
+    
+    # Run deterministic canonical normalization
+    canonical_data = canonical_normalize_product(structured_data, ocr_data)
+    return canonical_data
 
 
 def main():

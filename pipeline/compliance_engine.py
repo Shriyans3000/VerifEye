@@ -22,9 +22,15 @@ def evidence(product, *keys):
         if v is None:
             continue
         if isinstance(v, list):
-            out.extend(x for x in v if isinstance(x, dict))
+            for x in v:
+                if isinstance(x, dict):
+                    x_copy = dict(x)
+                    x_copy["image_index"] = x_copy.get("image_index", 0)
+                    out.append(x_copy)
         elif isinstance(v, dict):
-            out.append(v)
+            v_copy = dict(v)
+            v_copy["image_index"] = v_copy.get("image_index", 0)
+            out.append(v_copy)
     return out
 
 

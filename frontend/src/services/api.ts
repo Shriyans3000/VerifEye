@@ -19,9 +19,17 @@ export const checkHealth = async (): Promise<boolean> => {
   }
 };
 
-export const analyzePackageLabel = async (file: File): Promise<AnalyzeResponse> => {
+export const analyzePackageLabel = async (files: File | File[]): Promise<AnalyzeResponse> => {
   const formData = new FormData();
-  formData.append('file', file);
+  const fileArray = Array.isArray(files) ? files : [files];
+
+  if (fileArray.length === 1) {
+    formData.append('file', fileArray[0]);
+  } else {
+    fileArray.forEach((f) => {
+      formData.append('files', f);
+    });
+  }
 
   try {
     const response = await client.post<AnalyzeResponse>('/api/analyze', formData, {
