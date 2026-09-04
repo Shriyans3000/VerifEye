@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { AnalyzeResponse, HealthResponse } from '../types/api';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -37,7 +38,7 @@ export const analyzePackageLabel = async (file: File): Promise<AnalyzeResponse> 
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
       if (!error.response) {
-        throw new Error('Unable to connect to VerifEye inspection server. Please ensure the backend service is running on port 8000.');
+        throw new Error('Unable to connect to the VerifEye inspection server. Please check that the backend service is available.');
       }
 
       const status = error.response.status;
