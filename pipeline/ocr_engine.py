@@ -10,7 +10,13 @@ def get_ocr_engine():
     global _OCR_INSTANCE
     if _OCR_INSTANCE is None:
         print("Loading PaddleOCR instance (lazy singleton)...")
-        _OCR_INSTANCE = PaddleOCR(lang="en")
+        _OCR_INSTANCE = PaddleOCR(
+            lang="en",
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=False,
+            enable_mkldnn=False
+        )
     return _OCR_INSTANCE
 
 
