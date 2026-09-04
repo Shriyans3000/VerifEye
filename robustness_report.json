@@ -1,0 +1,1793 @@
+{
+  "metadata": {
+    "suite_title": "VerifEye Phase 5 Robustness & Adversarial Testing Report",
+    "timestamp": "2026-09-04T06:58:19Z",
+    "total_duration_seconds": 420.3,
+    "gpu_accelerated": true,
+    "paddleocr_version": "PP-OCRv4 / PP-OCRv6",
+    "llm_model": "openai/gpt-oss-120b (Groq API)",
+    "compliance_ruleset": "Legal Metrology (Packaged Commodities) Rules, 2011"
+  },
+  "summary_metrics": {
+    "total_tests": 27,
+    "passed_tests": 16,
+    "failed_tests": 11,
+    "test_pass_rate_pct": 59.3,
+    "compliance_distribution": {
+      "COMPLIANT_or_PASS": 0,
+      "NON_COMPLIANT_or_FAIL": 3,
+      "REVIEW_REQUIRED_or_REVIEW": 2,
+      "MISSING": 0
+    },
+    "accuracies": {
+      "field_extraction_accuracy_pct": 62.5,
+      "compliance_decision_accuracy_pct": 100.0,
+      "evidence_mapping_accuracy_pct": 100.0
+    }
+  },
+  "test_records": [
+    {
+      "test_name": "cat1_baseline_test_image2.png",
+      "category": "Category 1: Complete / Compliant Labels",
+      "input_image": "test_image2.png",
+      "expected_behavior": "Pipeline succeeds; status=REVIEW_REQUIRED",
+      "actual_behavior": "Status=None; score=66.7%; duration=12.57s",
+      "extracted_fields": {
+        "mrp": "10.00",
+        "net_quantity": "110g+20g",
+        "manufacturer": "PARLE PRODUCTS PVT. LTD"
+      },
+      "compliance_result": null,
+      "evidence_status": "VALID_LINKED",
+      "test_status": "FAIL",
+      "notes": "Parle-G real package image"
+    },
+    {
+      "test_name": "cat1_baseline_test_label.jpeg",
+      "category": "Category 1: Complete / Compliant Labels",
+      "input_image": "test_label.jpeg",
+      "expected_behavior": "Pipeline succeeds; status=Any valid",
+      "actual_behavior": "Status=None; score=58.3%; duration=11.43s",
+      "extracted_fields": {
+        "mrp": null,
+        "net_quantity": "400g",
+        "manufacturer": null
+      },
+      "compliance_result": null,
+      "evidence_status": "EMPTY",
+      "test_status": "PASS",
+      "notes": "Commercial product label image"
+    },
+    {
+      "test_name": "cat2_missing_synthetic_missing_mrp",
+      "category": "Category 2: Missing Declarations",
+      "input_image": "synthetic_missing_mrp.png",
+      "expected_behavior": "MRP status = MISSING",
+      "actual_behavior": "MRP status = MISSING; overall = None",
+      "extracted_fields": {
+        "product_name": "Biscuits",
+        "manufacturer": "BAKEWELL FOODS PVT LTD",
+        "manufacturer_address": "Plot 42, Industrial Area, Andheri East, Mumbai, MH-400093",
+        "country_of_origin": "India",
+        "mrp": null,
+        "net_quantity": "200 g",
+        "unit_sale_price": null,
+        "packed_date": "15/06/2024",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": "6 MONTHS FROM PACKAGING",
+        "batch_number": "BK-994",
+        "consumer_care": {
+          "phone": "022-28391234",
+          "email": "care@bakewellfoods.in"
+        },
+        "tax_inclusive_mrp": null,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": {
+            "ocr_id": 2,
+            "text": "Common / Generic Name: Biscuits",
+            "confidence": 0.9991837739944458,
+            "bbox": [
+              18,
+              114,
+              256,
+              134
+            ]
+          },
+          "manufacturer": {
+            "ocr_id": 3,
+            "text": "Manufactured & Packed By: BAKEWELL FOODS PVT LTD",
+            "confidence": 0.991481602191925,
+            "bbox": [
+              17,
+              158,
+              526,
+              181
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 4,
+            "text": "Plot 42, Industrial Area, Andheri East, Mumbai, MH-400093",
+            "confidence": 0.9991889595985413,
+            "bbox": [
+              15,
+              190,
+              528,
+              214
+            ]
+          },
+          "country_of_origin": {
+            "ocr_id": 5,
+            "text": "Country of Origin: India",
+            "confidence": 0.9999308586120605,
+            "bbox": [
+              15,
+              221,
+              221,
+              249
+            ]
+          },
+          "mrp": null,
+          "net_quantity": {
+            "ocr_id": 6,
+            "text": "Net Quantity: 200 g",
+            "confidence": 0.9996669888496399,
+            "bbox": [
+              13,
+              253,
+              191,
+              280
+            ]
+          },
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 7,
+            "text": "PKD: 15/06/2024",
+            "confidence": 0.9759711623191833,
+            "bbox": [
+              15,
+              304,
+              171,
+              325
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": {
+            "ocr_id": 8,
+            "text": "BEST BEFORE: 6 MONTHS FROM PACKAGING",
+            "confidence": 0.999720573425293,
+            "bbox": [
+              13,
+              334,
+              448,
+              360
+            ]
+          },
+          "batch_number": {
+            "ocr_id": 9,
+            "text": "Batch No: BK-994",
+            "confidence": 0.9998340606689453,
+            "bbox": [
+              14,
+              369,
+              178,
+              390
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 10,
+            "text": "Consumer Care Officer: Tel: 022-28391234",
+            "confidence": 0.97784024477005,
+            "bbox": [
+              15,
+              417,
+              391,
+              437
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 11,
+            "text": "Email: care@bakewellfoods.in",
+            "confidence": 0.9999184608459473,
+            "bbox": [
+              15,
+              449,
+              279,
+              470
+            ]
+          },
+          "tax_inclusive_mrp": null,
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "EMPTY",
+      "test_status": "PASS",
+      "notes": "MRP omitted from label"
+    },
+    {
+      "test_name": "cat2_missing_synthetic_missing_quantity",
+      "category": "Category 2: Missing Declarations",
+      "input_image": "synthetic_missing_quantity.png",
+      "expected_behavior": "Net Quantity status = MISSING",
+      "actual_behavior": "Net Quantity status = MISSING; overall = None",
+      "extracted_fields": {
+        "product_name": "Black Tea",
+        "manufacturer": "APEX BEVERAGES LTD",
+        "manufacturer_address": "Tea Estate 12, Dibrugarh, Assam - 786001",
+        "country_of_origin": "India",
+        "mrp": "250.00",
+        "net_quantity": null,
+        "unit_sale_price": null,
+        "packed_date": "10/04/2024",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "AT-2024-B",
+        "consumer_care": {
+          "phone": "1800-22-9988",
+          "email": "contact@apexbeverages.com"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": {
+            "ocr_id": 2,
+            "text": "Common / Generic Name: Black Tea",
+            "confidence": 0.9955679774284363,
+            "bbox": [
+              17,
+              114,
+              271,
+              135
+            ]
+          },
+          "manufacturer": {
+            "ocr_id": 3,
+            "text": "Manufacturer: APEX BEVERAGES LTD",
+            "confidence": 0.9881336092948914,
+            "bbox": [
+              17,
+              161,
+              363,
+              181
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 4,
+            "text": "Tea Estate 12, Dibrugarh, Assam - 786001",
+            "confidence": 0.9873273968696594,
+            "bbox": [
+              15,
+              192,
+              385,
+              215
+            ]
+          },
+          "country_of_origin": {
+            "ocr_id": 5,
+            "text": "Country of Origin: India",
+            "confidence": 0.9868927597999573,
+            "bbox": [
+              15,
+              222,
+              220,
+              250
+            ]
+          },
+          "mrp": {
+            "ocr_id": 6,
+            "text": "MRP \u20b9 250.00 (INCL. OF ALL TAXES)",
+            "confidence": 0.9867766499519348,
+            "bbox": [
+              14,
+              254,
+              354,
+              281
+            ]
+          },
+          "net_quantity": null,
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 7,
+            "text": "PKD: 10/04/2024",
+            "confidence": 0.9740489721298218,
+            "bbox": [
+              14,
+              303,
+              169,
+              326
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 8,
+            "text": "Batch No: AT-2024-B",
+            "confidence": 0.9997764229774475,
+            "bbox": [
+              14,
+              335,
+              206,
+              359
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 9,
+            "text": "Customer Care Cell: 1800-22-9988",
+            "confidence": 0.9995782375335693,
+            "bbox": [
+              14,
+              384,
+              321,
+              407
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 10,
+            "text": "Email: contact@apexbeverages.com",
+            "confidence": 0.9963775873184204,
+            "bbox": [
+              13,
+              416,
+              334,
+              440
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 6,
+            "text": "MRP \u20b9 250.00 (INCL. OF ALL TAXES)",
+            "confidence": 0.9867766499519348,
+            "bbox": [
+              14,
+              254,
+              354,
+              281
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "EMPTY",
+      "test_status": "PASS",
+      "notes": "Net Quantity omitted from label"
+    },
+    {
+      "test_name": "cat2_missing_synthetic_missing_manufacturer",
+      "category": "Category 2: Missing Declarations",
+      "input_image": "synthetic_missing_manufacturer.png",
+      "expected_behavior": "Manufacturer / Packer / Importer status = MISSING",
+      "actual_behavior": "Manufacturer / Packer / Importer status = MISSING; overall = None",
+      "extracted_fields": {
+        "product_name": "Breakfast Cereal",
+        "manufacturer": null,
+        "manufacturer_address": null,
+        "country_of_origin": "India",
+        "mrp": "180.00",
+        "net_quantity": "500 g",
+        "unit_sale_price": "\u20b90.36 per g",
+        "packed_date": "01/05/2024",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "CF-501",
+        "consumer_care": {
+          "phone": "011-45678900",
+          "email": "feedback@cereal.in"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": {
+            "ocr_id": 2,
+            "text": "Common / Generic Name: Breakfast Cereal",
+            "confidence": 0.987368643283844,
+            "bbox": [
+              16,
+              114,
+              318,
+              134
+            ]
+          },
+          "manufacturer": null,
+          "manufacturer_address": null,
+          "country_of_origin": {
+            "ocr_id": 6,
+            "text": "Country of Origin: India",
+            "confidence": 0.9999483227729797,
+            "bbox": [
+              14,
+              255,
+              220,
+              281
+            ]
+          },
+          "mrp": {
+            "ocr_id": 4,
+            "text": "MRP  180.00 (Inclusive of all taxes)",
+            "confidence": 0.9809331893920898,
+            "bbox": [
+              14,
+              189,
+              335,
+              216
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 3,
+            "text": "Net Quantity: 500 g",
+            "confidence": 0.9978082776069641,
+            "bbox": [
+              14,
+              157,
+              189,
+              186
+            ]
+          },
+          "unit_sale_price": {
+            "ocr_id": 5,
+            "text": "Unit Sale Price: \u20b90.36 per g",
+            "confidence": 0.9717640280723572,
+            "bbox": [
+              14,
+              221,
+              258,
+              250
+            ]
+          },
+          "packed_date": {
+            "ocr_id": 7,
+            "text": "Packed: 01/05/2024",
+            "confidence": 0.9987306594848633,
+            "bbox": [
+              14,
+              306,
+              195,
+              327
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 8,
+            "text": "Batch No: CF-501",
+            "confidence": 0.9783770442008972,
+            "bbox": [
+              15,
+              338,
+              175,
+              360
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 9,
+            "text": "Consumer Care: Phone: 011-45678900 | Email: feedback@cereal.in",
+            "confidence": 0.9962793588638306,
+            "bbox": [
+              14,
+              371,
+              605,
+              393
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 9,
+            "text": "Consumer Care: Phone: 011-45678900 | Email: feedback@cereal.in",
+            "confidence": 0.9962793588638306,
+            "bbox": [
+              14,
+              371,
+              605,
+              393
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 4,
+            "text": "MRP  180.00 (Inclusive of all taxes)",
+            "confidence": 0.9809331893920898,
+            "bbox": [
+              14,
+              189,
+              335,
+              216
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "EMPTY",
+      "test_status": "PASS",
+      "notes": "Manufacturer name omitted"
+    },
+    {
+      "test_name": "cat3_deliberate_zero_mrp",
+      "category": "Category 3: Deliberate Compliance Violations",
+      "input_image": "mock_structured_input",
+      "expected_behavior": "MRP=FAIL, overall=NON_COMPLIANT",
+      "actual_behavior": "MRP=FAIL, overall=NON_COMPLIANT",
+      "extracted_fields": {
+        "mrp": "0.00",
+        "net_quantity": "100 g"
+      },
+      "compliance_result": "NON_COMPLIANT",
+      "evidence_status": "N/A (Rule Engine Test)",
+      "test_status": "PASS",
+      "notes": "Deterministic rule check: Deliberate Zero MRP"
+    },
+    {
+      "test_name": "cat3_deliberate_negative_mrp",
+      "category": "Category 3: Deliberate Compliance Violations",
+      "input_image": "mock_structured_input",
+      "expected_behavior": "MRP=FAIL, overall=NON_COMPLIANT",
+      "actual_behavior": "MRP=FAIL, overall=NON_COMPLIANT",
+      "extracted_fields": {
+        "mrp": "-20.00",
+        "net_quantity": "100 g"
+      },
+      "compliance_result": "NON_COMPLIANT",
+      "evidence_status": "N/A (Rule Engine Test)",
+      "test_status": "PASS",
+      "notes": "Deterministic rule check: Deliberate Negative MRP"
+    },
+    {
+      "test_name": "cat3_deliberate_date_inconsistency",
+      "category": "Category 3: Deliberate Compliance Violations",
+      "input_image": "mock_structured_input",
+      "expected_behavior": "Date Consistency=FAIL, overall=Any",
+      "actual_behavior": "Date Consistency=FAIL, overall=REVIEW_REQUIRED",
+      "extracted_fields": {
+        "manufacturer": "VITA DAIRY",
+        "manufacturer_address": "Anand, Gujarat",
+        "product_name": "Health Drink",
+        "net_quantity": "200 ml",
+        "mrp": "35.00",
+        "tax_inclusive_mrp": true,
+        "manufacturing_date": "20/08/2024",
+        "use_by_date": "10/05/2023"
+      },
+      "compliance_result": "REVIEW_REQUIRED",
+      "evidence_status": "N/A (Rule Engine Test)",
+      "test_status": "PASS",
+      "notes": "Deterministic rule check: Deliberate Date Inconsistency"
+    },
+    {
+      "test_name": "cat3_deliberate_tax_exclusion",
+      "category": "Category 3: Deliberate Compliance Violations",
+      "input_image": "mock_structured_input",
+      "expected_behavior": "MRP Tax Inclusion=FAIL, overall=NON_COMPLIANT",
+      "actual_behavior": "MRP Tax Inclusion=FAIL, overall=NON_COMPLIANT",
+      "extracted_fields": {
+        "mrp": "100.00",
+        "tax_inclusive_mrp": false
+      },
+      "compliance_result": "NON_COMPLIANT",
+      "evidence_status": "N/A (Rule Engine Test)",
+      "test_status": "PASS",
+      "notes": "Deterministic rule check: Deliberate Tax Exclusion"
+    },
+    {
+      "test_name": "cat3_valid_date_chronology",
+      "category": "Category 3: Deliberate Compliance Violations",
+      "input_image": "mock_structured_input",
+      "expected_behavior": "Date Consistency=PASS, overall=Any",
+      "actual_behavior": "Date Consistency=PASS, overall=REVIEW_REQUIRED",
+      "extracted_fields": {
+        "manufacturing_date": "01/01/2024",
+        "expiry_date": "31/12/2024"
+      },
+      "compliance_result": "REVIEW_REQUIRED",
+      "evidence_status": "N/A (Rule Engine Test)",
+      "test_status": "PASS",
+      "notes": "Deterministic rule check: Valid Date Chronology"
+    },
+    {
+      "test_name": "cat4_difficult_test_image2_blur_sigma1_5",
+      "category": "Category 4: OCR-Difficult Images",
+      "input_image": "test_image2_blur_sigma1_5.png",
+      "expected_behavior": "Pipeline processes degraded image without crash",
+      "actual_behavior": "Success=True; score=66.7%; status=None",
+      "extracted_fields": {
+        "product_name": null,
+        "manufacturer": "PARLE PRODUCTS PVT. LTD",
+        "manufacturer_address": "MUMBAI,MH-400057",
+        "country_of_origin": null,
+        "mrp": "10.00",
+        "net_quantity": "110g+20g",
+        "unit_sale_price": null,
+        "packed_date": "29/7/20",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "KA 29C",
+        "consumer_care": {
+          "phone": "022-6691 692",
+          "email": "cs@parle.biz"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": null,
+          "manufacturer": {
+            "ocr_id": 7,
+            "text": "PARLE PRODUCTS PVT. LTD",
+            "confidence": 0.9756841063499451,
+            "bbox": [
+              373,
+              328,
+              700,
+              381
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 14,
+            "text": "MUMBAI,MH-400057",
+            "confidence": 0.9998327493667603,
+            "bbox": [
+              376,
+              401,
+              646,
+              454
+            ]
+          },
+          "country_of_origin": null,
+          "mrp": {
+            "ocr_id": 2,
+            "text": "MRP10.00",
+            "confidence": 0.9989416599273682,
+            "bbox": [
+              398,
+              232,
+              591,
+              279
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 1,
+            "text": "NET WEIGHT: 110g+20g E",
+            "confidence": 0.9730538725852966,
+            "bbox": [
+              390,
+              162,
+              700,
+              213
+            ]
+          },
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C",
+            "confidence": 0.9957897067070007,
+            "bbox": [
+              5,
+              33,
+              700,
+              109
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C",
+            "confidence": 0.9957897067070007,
+            "bbox": [
+              5,
+              33,
+              700,
+              109
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 18,
+            "text": "PHONE NO.:022-6691 692",
+            "confidence": 0.9686554074287415,
+            "bbox": [
+              380,
+              433,
+              699,
+              488
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 22,
+            "text": "Email:cs@parle.biz",
+            "confidence": 0.9997895359992981,
+            "bbox": [
+              380,
+              467,
+              683,
+              532
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 3,
+            "text": "INCL. OF ALL TAXES",
+            "confidence": 0.9666681289672852,
+            "bbox": [
+              400,
+              268,
+              617,
+              304
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "PROCESSED",
+      "test_status": "PASS",
+      "notes": "Gaussian Blur (sigma=1.5)"
+    },
+    {
+      "test_name": "cat4_difficult_test_image2_low_contrast",
+      "category": "Category 4: OCR-Difficult Images",
+      "input_image": "test_image2_low_contrast.png",
+      "expected_behavior": "Pipeline processes degraded image without crash",
+      "actual_behavior": "Success=True; score=66.7%; status=None",
+      "extracted_fields": {
+        "product_name": null,
+        "manufacturer": "PARLE PRODUCTS PVT. LTD",
+        "manufacturer_address": "MUMBAI, MH-400057",
+        "country_of_origin": null,
+        "mrp": "410.00",
+        "net_quantity": "110g+20g",
+        "unit_sale_price": null,
+        "packed_date": "29/7/20",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "KA 29C",
+        "consumer_care": {
+          "phone": "022-6691 692",
+          "email": "cs@parle.biz"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": null,
+          "manufacturer": {
+            "ocr_id": 7,
+            "text": "PARLE PRODUCTS PVT. LTD",
+            "confidence": 0.9859002232551575,
+            "bbox": [
+              373,
+              327,
+              699,
+              372
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 14,
+            "text": "MUMBAI, MH-400057",
+            "confidence": 0.9820080995559692,
+            "bbox": [
+              376,
+              397,
+              643,
+              444
+            ]
+          },
+          "country_of_origin": null,
+          "mrp": {
+            "ocr_id": 2,
+            "text": "MRP410.00",
+            "confidence": 0.9147889018058777,
+            "bbox": [
+              397,
+              230,
+              586,
+              275
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 1,
+            "text": "NET WEIGHT: 110g+20g E",
+            "confidence": 0.988193154335022,
+            "bbox": [
+              388,
+              162,
+              700,
+              212
+            ]
+          },
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C ",
+            "confidence": 0.9754796028137207,
+            "bbox": [
+              0,
+              43,
+              700,
+              108
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C ",
+            "confidence": 0.9754796028137207,
+            "bbox": [
+              0,
+              43,
+              700,
+              108
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 19,
+            "text": "PHONE NO.:022-6691 692",
+            "confidence": 0.9798746109008789,
+            "bbox": [
+              379,
+              429,
+              700,
+              478
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 23,
+            "text": "Email:cs@parle.biz",
+            "confidence": 0.9998224973678589,
+            "bbox": [
+              380,
+              462,
+              679,
+              521
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 3,
+            "text": "INCL. OF ALL TAXES",
+            "confidence": 0.9948760271072388,
+            "bbox": [
+              397,
+              264,
+              614,
+              301
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "PROCESSED",
+      "test_status": "PASS",
+      "notes": "Low Contrast (alpha=0.45)"
+    },
+    {
+      "test_name": "cat4_difficult_test_image2_shadow",
+      "category": "Category 4: OCR-Difficult Images",
+      "input_image": "test_image2_shadow.png",
+      "expected_behavior": "Pipeline processes degraded image without crash",
+      "actual_behavior": "Success=True; score=66.7%; status=None",
+      "extracted_fields": {
+        "product_name": null,
+        "manufacturer": "PARLE PRODUCTS PVT. LTD",
+        "manufacturer_address": "MUMBAI, MH-400057",
+        "country_of_origin": null,
+        "mrp": "10.00",
+        "net_quantity": "110g+20g",
+        "unit_sale_price": null,
+        "packed_date": "29/7/20",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "KA 29C",
+        "consumer_care": {
+          "phone": "022-6691 6929",
+          "email": "cs@parle.biz"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": "901719112706",
+        "dimensions": null,
+        "evidence": {
+          "product_name": null,
+          "manufacturer": {
+            "ocr_id": 7,
+            "text": "PARLE PRODUCTS PVT. LTD",
+            "confidence": 0.9848228096961975,
+            "bbox": [
+              372,
+              330,
+              699,
+              375
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 14,
+            "text": "MUMBAI, MH-400057",
+            "confidence": 0.9809848666191101,
+            "bbox": [
+              376,
+              399,
+              643,
+              445
+            ]
+          },
+          "country_of_origin": null,
+          "mrp": {
+            "ocr_id": 2,
+            "text": "MRP10.00",
+            "confidence": 0.9997996091842651,
+            "bbox": [
+              396,
+              235,
+              588,
+              278
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 1,
+            "text": "NET WEIGHT: 110g+20g E",
+            "confidence": 0.9856430292129517,
+            "bbox": [
+              389,
+              167,
+              700,
+              216
+            ]
+          },
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C ",
+            "confidence": 0.9906063079833984,
+            "bbox": [
+              29,
+              49,
+              700,
+              111
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C ",
+            "confidence": 0.9906063079833984,
+            "bbox": [
+              29,
+              49,
+              700,
+              111
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 19,
+            "text": "PHONE NO.:022-6691 6929",
+            "confidence": 0.9918115735054016,
+            "bbox": [
+              378,
+              431,
+              700,
+              479
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 23,
+            "text": "Email:cs@parle.biz",
+            "confidence": 0.9998058676719666,
+            "bbox": [
+              379,
+              463,
+              680,
+              522
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 3,
+            "text": "INCL. OF ALL TAXES",
+            "confidence": 0.998112678527832,
+            "bbox": [
+              398,
+              268,
+              615,
+              304
+            ]
+          },
+          "fssai_number": {
+            "ocr_id": 4,
+            "text": "901719112706",
+            "confidence": 0.999761164188385,
+            "bbox": [
+              12,
+              291,
+              331,
+              335
+            ]
+          },
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "PROCESSED",
+      "test_status": "PASS",
+      "notes": "Uneven Synthetic Shadow"
+    },
+    {
+      "test_name": "cat4_difficult_test_image2_jpeg_q20",
+      "category": "Category 4: OCR-Difficult Images",
+      "input_image": "test_image2_jpeg_q20.jpg",
+      "expected_behavior": "Pipeline processes degraded image without crash",
+      "actual_behavior": "Success=True; score=66.7%; status=None",
+      "extracted_fields": {
+        "product_name": null,
+        "manufacturer": "PARLE PRODUCTS PVT. LTD.",
+        "manufacturer_address": "NORTH LEVEL CROSSING,V",
+        "country_of_origin": null,
+        "mrp": "10.00",
+        "net_quantity": "110g+20g",
+        "unit_sale_price": null,
+        "packed_date": "29/7/20",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "KA 29C",
+        "consumer_care": {
+          "phone": "022-6691 6929",
+          "email": "cs@parle.biz"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": null,
+          "manufacturer": {
+            "ocr_id": 7,
+            "text": "PARLE PRODUCTS PVT. LTD.",
+            "confidence": 0.9936947822570801,
+            "bbox": [
+              365,
+              330,
+              699,
+              371
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 10,
+            "text": "NORTH LEVEL CROSSING,V",
+            "confidence": 0.9762909412384033,
+            "bbox": [
+              366,
+              362,
+              700,
+              405
+            ]
+          },
+          "country_of_origin": null,
+          "mrp": {
+            "ocr_id": 2,
+            "text": "MRP10.00",
+            "confidence": 0.9996755123138428,
+            "bbox": [
+              390,
+              235,
+              580,
+              276
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 1,
+            "text": "NET WEIGHT: 110g+20g E",
+            "confidence": 0.9906017780303955,
+            "bbox": [
+              383,
+              169,
+              700,
+              214
+            ]
+          },
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C ",
+            "confidence": 0.9633811712265015,
+            "bbox": [
+              22,
+              47,
+              700,
+              116
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C ",
+            "confidence": 0.9633811712265015,
+            "bbox": [
+              22,
+              47,
+              700,
+              116
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 18,
+            "text": "PHONE NO.:022-6691 6929",
+            "confidence": 0.9972692728042603,
+            "bbox": [
+              371,
+              427,
+              700,
+              473
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 22,
+            "text": "Email:cs@parle.biz",
+            "confidence": 0.9975204467773438,
+            "bbox": [
+              372,
+              460,
+              672,
+              512
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 3,
+            "text": "INCL. OF ALL TAXES",
+            "confidence": 0.9783647060394287,
+            "bbox": [
+              392,
+              267,
+              609,
+              301
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "PROCESSED",
+      "test_status": "PASS",
+      "notes": "High JPEG Compression (Q=20)"
+    },
+    {
+      "test_name": "cat4_difficult_test_image2_perspective",
+      "category": "Category 4: OCR-Difficult Images",
+      "input_image": "test_image2_perspective.png",
+      "expected_behavior": "Pipeline processes degraded image without crash",
+      "actual_behavior": "Success=True; score=66.7%; status=None",
+      "extracted_fields": {
+        "product_name": null,
+        "manufacturer": "PARLE PRODUCTS PVT. LTD",
+        "manufacturer_address": "MUMBAI, MH-400057",
+        "country_of_origin": null,
+        "mrp": "10.00",
+        "net_quantity": "110g+20g",
+        "unit_sale_price": null,
+        "packed_date": "29/7/20",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "KA 29C B",
+        "consumer_care": {
+          "phone": "022-6691 6929",
+          "email": "cs@parle.biz"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": null,
+          "manufacturer": {
+            "ocr_id": 7,
+            "text": "PARLE PRODUCTS PVT. LTD",
+            "confidence": 0.9822505712509155,
+            "bbox": [
+              358,
+              335,
+              682,
+              378
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 13,
+            "text": "MUMBAI, MH-400057",
+            "confidence": 0.9838559627532959,
+            "bbox": [
+              363,
+              400,
+              622,
+              444
+            ]
+          },
+          "country_of_origin": null,
+          "mrp": {
+            "ocr_id": 2,
+            "text": "MRP10.00",
+            "confidence": 0.9997583031654358,
+            "bbox": [
+              379,
+              248,
+              569,
+              291
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 1,
+            "text": "NET WEIGHT: 110g+20g EX",
+            "confidence": 0.9954657554626465,
+            "bbox": [
+              373,
+              185,
+              700,
+              237
+            ]
+          },
+          "unit_sale_price": null,
+          "packed_date": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C B",
+            "confidence": 0.9746100306510925,
+            "bbox": [
+              24,
+              77,
+              700,
+              143
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 0,
+            "text": "PKD.: 29/7/20 BATCH: KA 29C B",
+            "confidence": 0.9746100306510925,
+            "bbox": [
+              24,
+              77,
+              700,
+              143
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 18,
+            "text": "PHONE NO.:022-6691 6929",
+            "confidence": 0.998905599117279,
+            "bbox": [
+              366,
+              428,
+              697,
+              476
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 22,
+            "text": "Email:cs@parle.biz",
+            "confidence": 0.9998117089271545,
+            "bbox": [
+              368,
+              459,
+              663,
+              515
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 3,
+            "text": "INCL. OF ALL TAXES",
+            "confidence": 0.9939696788787842,
+            "bbox": [
+              382,
+              279,
+              596,
+              314
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "PROCESSED",
+      "test_status": "PASS",
+      "notes": "Perspective Distortion"
+    },
+    {
+      "test_name": "cat5_trap_synthetic_pin_code_trap",
+      "category": "Category 5: OCR Traps",
+      "input_image": "synthetic_pin_code_trap.png",
+      "expected_behavior": "Accurate field extraction overcoming trap: PIN Code Trap",
+      "actual_behavior": "Extracted prod={\"product_name\": \"Whole Wheat Flour\", \"manufacturer\": \"NATURE GRAINS LTD\", \"manufacturer_address\": \"Plot 9, Village Khed, Pune PIN 400057 Maharashtra\", \"country_of_origin\": \"India\", \"mrp\": \"240.00\", \"net_quantity\": \"5 kg\", \"unit_sale_price\": \"\\u20b948.00 per kg\", \"packed_date\": \"12/03/2024\", \"manufacturing_date\": null, \"expiry_date\": null, \"use_by_date\": null, \"best_before\": null, \"batch_number\": \"NG-400057-X\", \"consumer_care\": {\"phone\": \"020-27654321\", \"email\": \"support@naturegrains.in\"}, \"tax_inclusive_mrp\": true, \"fssai_number\": null, \"dimensions\": null, \"evidence\": {\"product_name\": {\"ocr_id\": 2, \"text\": \"Common / Generic Name: Whole Wheat Flour\", \"confidence\": 0.9887567758560181, \"bbox\": [18, 115, 335, 135]}, \"manufacturer\": {\"ocr_id\": 3, \"text\": \"Manufactured & Packed By: NATURE GRAINS LTD\", \"confidence\": 0.9996544718742371, \"bbox\": [17, 160, 466, 183]}, \"manufacturer_address\": {\"ocr_id\": 4, \"text\": \"Plot 9, Village Khed, Pune PIN 400057 Maharashtra\", \"confidence\": 0.9940351247787476, \"bbox\": [16, 191, 467, 215]}, \"country_of_origin\": {\"ocr_id\": 5, \"text\": \"Country of Origin: India\", \"confidence\": 0.9978706240653992, \"bbox\": [17, 225, 221, 247]}, \"mrp\": {\"ocr_id\": 7, \"text\": \"MRP \\u20b9 240.00 (INCL OF ALL TAXES)\", \"confidence\": 0.9747741222381592, \"bbox\": [15, 286, 349, 313]}, \"net_quantity\": {\"ocr_id\": 6, \"text\": \"Net Quantity: 5 kg\", \"confidence\": 0.9995272159576416, \"bbox\": [14, 255, 178, 281]}, \"unit_sale_price\": {\"ocr_id\": 8, \"text\": \"Unit Sale Price: \\u20b948.00 per kg\", \"confidence\": 0.9790791273117065, \"bbox\": [15, 320, 279, 346]}, \"packed_date\": {\"ocr_id\": 9, \"text\": \"PKD: 12/03/2024\", \"confidence\": 0.9789878129959106, \"bbox\": [16, 370, 171, 391]}, \"manufacturing_date\": null, \"expiry_date\": null, \"use_by_date\": null, \"best_before\": null, \"batch_number\": {\"ocr_id\": 10, \"text\": \"Batch Number: NG-400057-X\", \"confidence\": 0.9999507665634155, \"bbox\": [15, 400, 276, 423]}, \"consumer_care_phone\": {\"ocr_id\": 11, \"text\": \"Consumer Cell: 020-27654321 | Email: support@naturegrains.in\", \"confidence\": 0.9943212270736694, \"bbox\": [15, 447, 571, 474]}, \"consumer_care_email\": {\"ocr_id\": 11, \"text\": \"Consumer Cell: 020-27654321 | Email: support@naturegrains.in\", \"confidence\": 0.9943212270736694, \"bbox\": [15, 447, 571, 474]}, \"tax_inclusive_mrp\": {\"ocr_id\": 7, \"text\": \"MRP \\u20b9 240.00 (INCL OF ALL TAXES)\", \"confidence\": 0.9747741222381592, \"bbox\": [15, 286, 349, 313]}, \"fssai_number\": null, \"dimensions\": null}}",
+      "extracted_fields": {
+        "product_name": "Whole Wheat Flour",
+        "manufacturer": "NATURE GRAINS LTD",
+        "manufacturer_address": "Plot 9, Village Khed, Pune PIN 400057 Maharashtra",
+        "country_of_origin": "India",
+        "mrp": "240.00",
+        "net_quantity": "5 kg",
+        "unit_sale_price": "\u20b948.00 per kg",
+        "packed_date": "12/03/2024",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "NG-400057-X",
+        "consumer_care": {
+          "phone": "020-27654321",
+          "email": "support@naturegrains.in"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": {
+            "ocr_id": 2,
+            "text": "Common / Generic Name: Whole Wheat Flour",
+            "confidence": 0.9887567758560181,
+            "bbox": [
+              18,
+              115,
+              335,
+              135
+            ]
+          },
+          "manufacturer": {
+            "ocr_id": 3,
+            "text": "Manufactured & Packed By: NATURE GRAINS LTD",
+            "confidence": 0.9996544718742371,
+            "bbox": [
+              17,
+              160,
+              466,
+              183
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 4,
+            "text": "Plot 9, Village Khed, Pune PIN 400057 Maharashtra",
+            "confidence": 0.9940351247787476,
+            "bbox": [
+              16,
+              191,
+              467,
+              215
+            ]
+          },
+          "country_of_origin": {
+            "ocr_id": 5,
+            "text": "Country of Origin: India",
+            "confidence": 0.9978706240653992,
+            "bbox": [
+              17,
+              225,
+              221,
+              247
+            ]
+          },
+          "mrp": {
+            "ocr_id": 7,
+            "text": "MRP \u20b9 240.00 (INCL OF ALL TAXES)",
+            "confidence": 0.9747741222381592,
+            "bbox": [
+              15,
+              286,
+              349,
+              313
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 6,
+            "text": "Net Quantity: 5 kg",
+            "confidence": 0.9995272159576416,
+            "bbox": [
+              14,
+              255,
+              178,
+              281
+            ]
+          },
+          "unit_sale_price": {
+            "ocr_id": 8,
+            "text": "Unit Sale Price: \u20b948.00 per kg",
+            "confidence": 0.9790791273117065,
+            "bbox": [
+              15,
+              320,
+              279,
+              346
+            ]
+          },
+          "packed_date": {
+            "ocr_id": 9,
+            "text": "PKD: 12/03/2024",
+            "confidence": 0.9789878129959106,
+            "bbox": [
+              16,
+              370,
+              171,
+              391
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 10,
+            "text": "Batch Number: NG-400057-X",
+            "confidence": 0.9999507665634155,
+            "bbox": [
+              15,
+              400,
+              276,
+              423
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 11,
+            "text": "Consumer Cell: 020-27654321 | Email: support@naturegrains.in",
+            "confidence": 0.9943212270736694,
+            "bbox": [
+              15,
+              447,
+              571,
+              474
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 11,
+            "text": "Consumer Cell: 020-27654321 | Email: support@naturegrains.in",
+            "confidence": 0.9943212270736694,
+            "bbox": [
+              15,
+              447,
+              571,
+              474
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 7,
+            "text": "MRP \u20b9 240.00 (INCL OF ALL TAXES)",
+            "confidence": 0.9747741222381592,
+            "bbox": [
+              15,
+              286,
+              349,
+              313
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "LINKED",
+      "test_status": "PASS",
+      "notes": "PIN Code Trap"
+    },
+    {
+      "test_name": "cat5_trap_synthetic_multiple_dates.png",
+      "category": "Category 5: OCR Traps",
+      "input_image": "synthetic_multiple_dates.png",
+      "expected_behavior": "Multiple Dates Mapping",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 195192, Requested 4975. Please try again in 1m12.144s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 195192, Requested 4975. Please try again in 1m12.144s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat5_trap_synthetic_multiple_phones.png",
+      "category": "Category 5: OCR Traps",
+      "input_image": "synthetic_multiple_phones.png",
+      "expected_behavior": "Multiple Phones (Helpline selection)",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 195180, Requested 5106. Please try again in 2m3.552s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 195180, Requested 5106. Please try again in 2m3.552s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat5_trap_synthetic_embedded_mrp",
+      "category": "Category 5: OCR Traps",
+      "input_image": "synthetic_embedded_mrp.png",
+      "expected_behavior": "Accurate field extraction overcoming trap: Embedded MRP Extraction",
+      "actual_behavior": "Extracted prod={\"product_name\": \"Peanut Butter Spread\", \"manufacturer\": \"NUTRIFOODS INDIA PVT LTD\", \"manufacturer_address\": \"Sector 58, Mohali, Punjab - 160059\", \"country_of_origin\": \"India\", \"mrp\": \"199.00\", \"net_quantity\": \"350 g\", \"unit_sale_price\": \"0.57 per g\", \"packed_date\": \"02/07/2024\", \"manufacturing_date\": null, \"expiry_date\": null, \"use_by_date\": null, \"best_before\": null, \"batch_number\": \"PB-778\", \"consumer_care\": {\"phone\": \"0172-2244888\", \"email\": \"customercare@nutrifoods.in\"}, \"tax_inclusive_mrp\": true, \"fssai_number\": null, \"dimensions\": null, \"evidence\": {\"product_name\": {\"ocr_id\": 2, \"text\": \"Common / Generic Name: Peanut Butter Spread\", \"confidence\": 0.9997502565383911, \"bbox\": [16, 113, 353, 135]}, \"manufacturer\": {\"ocr_id\": 3, \"text\": \"Manufacturer: NUTRIFOODS INDIA PVT LTD\", \"confidence\": 0.9997375011444092, \"bbox\": [16, 159, 415, 181]}, \"manufacturer_address\": {\"ocr_id\": 4, \"text\": \"Sector 58, Mohali, Punjab - 160059\", \"confidence\": 0.998840868473053, \"bbox\": [16, 192, 325, 214]}, \"country_of_origin\": {\"ocr_id\": 5, \"text\": \"Country of Origin: India\", \"confidence\": 0.9941380023956299, \"bbox\": [15, 222, 222, 249]}, \"mrp\": {\"ocr_id\": 7, \"text\": \"SPECIAL MONSOON OFFER MRP \\u20b9199.00 INCL OF TAXES\", \"confidence\": 0.9939752817153931, \"bbox\": [15, 306, 674, 329]}, \"net_quantity\": {\"ocr_id\": 6, \"text\": \"Net Quantity: 350 g\", \"confidence\": 0.9993287920951843, \"bbox\": [13, 255, 191, 281]}, \"unit_sale_price\": {\"ocr_id\": 8, \"text\": \"Unit Sale Price: \\u20b90.57 per g\", \"confidence\": 0.9772953987121582, \"bbox\": [14, 341, 260, 367]}, \"packed_date\": {\"ocr_id\": 9, \"text\": \"PKD: 02/07/2024 | Batch: PB-778\", \"confidence\": 0.9928913712501526, \"bbox\": [15, 374, 309, 396]}, \"manufacturing_date\": null, \"expiry_date\": null, \"use_by_date\": null, \"best_before\": null, \"batch_number\": {\"ocr_id\": 9, \"text\": \"PKD: 02/07/2024 | Batch: PB-778\", \"confidence\": 0.9928913712501526, \"bbox\": [15, 374, 309, 396]}, \"consumer_care_phone\": {\"ocr_id\": 10, \"text\": \"Consumer Care: Tel: 0172-2244888 | Email: customercare@nutrifoods.in\", \"confidence\": 0.9893099665641785, \"bbox\": [16, 409, 650, 429]}, \"consumer_care_email\": {\"ocr_id\": 10, \"text\": \"Consumer Care: Tel: 0172-2244888 | Email: customercare@nutrifoods.in\", \"confidence\": 0.9893099665641785, \"bbox\": [16, 409, 650, 429]}, \"tax_inclusive_mrp\": {\"ocr_id\": 7, \"text\": \"SPECIAL MONSOON OFFER MRP \\u20b9199.00 INCL OF TAXES\", \"confidence\": 0.9939752817153931, \"bbox\": [15, 306, 674, 329]}, \"fssai_number\": null, \"dimensions\": null}}",
+      "extracted_fields": {
+        "product_name": "Peanut Butter Spread",
+        "manufacturer": "NUTRIFOODS INDIA PVT LTD",
+        "manufacturer_address": "Sector 58, Mohali, Punjab - 160059",
+        "country_of_origin": "India",
+        "mrp": "199.00",
+        "net_quantity": "350 g",
+        "unit_sale_price": "0.57 per g",
+        "packed_date": "02/07/2024",
+        "manufacturing_date": null,
+        "expiry_date": null,
+        "use_by_date": null,
+        "best_before": null,
+        "batch_number": "PB-778",
+        "consumer_care": {
+          "phone": "0172-2244888",
+          "email": "customercare@nutrifoods.in"
+        },
+        "tax_inclusive_mrp": true,
+        "fssai_number": null,
+        "dimensions": null,
+        "evidence": {
+          "product_name": {
+            "ocr_id": 2,
+            "text": "Common / Generic Name: Peanut Butter Spread",
+            "confidence": 0.9997502565383911,
+            "bbox": [
+              16,
+              113,
+              353,
+              135
+            ]
+          },
+          "manufacturer": {
+            "ocr_id": 3,
+            "text": "Manufacturer: NUTRIFOODS INDIA PVT LTD",
+            "confidence": 0.9997375011444092,
+            "bbox": [
+              16,
+              159,
+              415,
+              181
+            ]
+          },
+          "manufacturer_address": {
+            "ocr_id": 4,
+            "text": "Sector 58, Mohali, Punjab - 160059",
+            "confidence": 0.998840868473053,
+            "bbox": [
+              16,
+              192,
+              325,
+              214
+            ]
+          },
+          "country_of_origin": {
+            "ocr_id": 5,
+            "text": "Country of Origin: India",
+            "confidence": 0.9941380023956299,
+            "bbox": [
+              15,
+              222,
+              222,
+              249
+            ]
+          },
+          "mrp": {
+            "ocr_id": 7,
+            "text": "SPECIAL MONSOON OFFER MRP \u20b9199.00 INCL OF TAXES",
+            "confidence": 0.9939752817153931,
+            "bbox": [
+              15,
+              306,
+              674,
+              329
+            ]
+          },
+          "net_quantity": {
+            "ocr_id": 6,
+            "text": "Net Quantity: 350 g",
+            "confidence": 0.9993287920951843,
+            "bbox": [
+              13,
+              255,
+              191,
+              281
+            ]
+          },
+          "unit_sale_price": {
+            "ocr_id": 8,
+            "text": "Unit Sale Price: \u20b90.57 per g",
+            "confidence": 0.9772953987121582,
+            "bbox": [
+              14,
+              341,
+              260,
+              367
+            ]
+          },
+          "packed_date": {
+            "ocr_id": 9,
+            "text": "PKD: 02/07/2024 | Batch: PB-778",
+            "confidence": 0.9928913712501526,
+            "bbox": [
+              15,
+              374,
+              309,
+              396
+            ]
+          },
+          "manufacturing_date": null,
+          "expiry_date": null,
+          "use_by_date": null,
+          "best_before": null,
+          "batch_number": {
+            "ocr_id": 9,
+            "text": "PKD: 02/07/2024 | Batch: PB-778",
+            "confidence": 0.9928913712501526,
+            "bbox": [
+              15,
+              374,
+              309,
+              396
+            ]
+          },
+          "consumer_care_phone": {
+            "ocr_id": 10,
+            "text": "Consumer Care: Tel: 0172-2244888 | Email: customercare@nutrifoods.in",
+            "confidence": 0.9893099665641785,
+            "bbox": [
+              16,
+              409,
+              650,
+              429
+            ]
+          },
+          "consumer_care_email": {
+            "ocr_id": 10,
+            "text": "Consumer Care: Tel: 0172-2244888 | Email: customercare@nutrifoods.in",
+            "confidence": 0.9893099665641785,
+            "bbox": [
+              16,
+              409,
+              650,
+              429
+            ]
+          },
+          "tax_inclusive_mrp": {
+            "ocr_id": 7,
+            "text": "SPECIAL MONSOON OFFER MRP \u20b9199.00 INCL OF TAXES",
+            "confidence": 0.9939752817153931,
+            "bbox": [
+              15,
+              306,
+              674,
+              329
+            ]
+          },
+          "fssai_number": null,
+          "dimensions": null
+        }
+      },
+      "compliance_result": null,
+      "evidence_status": "LINKED",
+      "test_status": "PASS",
+      "notes": "Embedded MRP Extraction"
+    },
+    {
+      "test_name": "cat5_trap_synthetic_quantity_extra.png",
+      "category": "Category 5: OCR Traps",
+      "input_image": "synthetic_quantity_extra.png",
+      "expected_behavior": "Composite Quantity Format",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199871, Requested 4854. Please try again in 34m1.2s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199871, Requested 4854. Please try again in 34m1.2s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat6_rotation_test_image2_rot_5.png",
+      "category": "Category 6: Rotated / Distorted Labels",
+      "input_image": "test_image2_rot_5.png",
+      "expected_behavior": "+5 degrees rotation",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199858, Requested 5989. Please try again in 42m5.904s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199858, Requested 5989. Please try again in 42m5.904s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat6_rotation_test_image2_rot_10.png",
+      "category": "Category 6: Rotated / Distorted Labels",
+      "input_image": "test_image2_rot_10.png",
+      "expected_behavior": "+10 degrees rotation",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199846, Requested 6087. Please try again in 42m43.056s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199846, Requested 6087. Please try again in 42m43.056s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat6_rotation_test_image2_rot_neg10.png",
+      "category": "Category 6: Rotated / Distorted Labels",
+      "input_image": "test_image2_rot_neg10.png",
+      "expected_behavior": "-10 degrees rotation",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199833, Requested 6077. Please try again in 42m33.12s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199833, Requested 6077. Please try again in 42m33.12s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat6_rotation_test_image2_rot_15.png",
+      "category": "Category 6: Rotated / Distorted Labels",
+      "input_image": "test_image2_rot_15.png",
+      "expected_behavior": "+15 degrees rotation",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199821, Requested 5891. Please try again in 41m7.584s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199821, Requested 5891. Please try again in 41m7.584s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat6_rotation_test_image2_rot_neg15.png",
+      "category": "Category 6: Rotated / Distorted Labels",
+      "input_image": "test_image2_rot_neg15.png",
+      "expected_behavior": "-15 degrees rotation",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199808, Requested 5918. Please try again in 41m13.632s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199808, Requested 5918. Please try again in 41m13.632s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat7_evidence_traceability_audit",
+      "category": "Category 7: Evidence Traceability",
+      "input_image": "test_image2.png",
+      "expected_behavior": "Evidence lineage audit succeeds",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199796, Requested 5965. Please try again in 41m28.752s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199796, Requested 5965. Please try again in 41m28.752s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    },
+    {
+      "test_name": "cat8_adversarial_promotional_copy",
+      "category": "Category 8: Adversarial Label Content",
+      "input_image": "synthetic_adversarial_promo.png",
+      "expected_behavior": "Robust extraction under adversarial copy",
+      "actual_behavior": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199784, Requested 5027. Please try again in 34m38.351999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}",
+      "extracted_fields": {},
+      "compliance_result": "ERROR",
+      "evidence_status": "ERROR",
+      "test_status": "FAIL",
+      "notes": "Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m1eesjeje6ptfnx1rn37z03n` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199784, Requested 5027. Please try again in 34m38.351999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+    }
+  ]
+}

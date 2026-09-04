@@ -1,0 +1,219 @@
+{
+  "test_image2_blur_sigma1_5.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "gaussian_blur",
+    "parameters": {
+      "sigma": 1.5,
+      "ksize": 7
+    },
+    "description": "Mild Gaussian blur simulating slight camera defocus",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_blur_sigma2_5.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "gaussian_blur",
+    "parameters": {
+      "sigma": 2.5,
+      "ksize": 11
+    },
+    "description": "Heavy Gaussian blur simulating out-of-focus camera",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_low_contrast.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "low_contrast",
+    "parameters": {
+      "alpha": 0.45,
+      "beta": 60
+    },
+    "description": "Severely reduced dynamic range simulating poor lighting",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_gamma_0_6.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "gamma_variation",
+    "parameters": {
+      "gamma": 0.6
+    },
+    "description": "Darkened exposure curve (gamma 0.6)",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_gamma_1_5.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "gamma_variation",
+    "parameters": {
+      "gamma": 1.5
+    },
+    "description": "Overexposed washed out lighting (gamma 1.5)",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_shadow.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "synthetic_shadow",
+    "parameters": {
+      "gradient": "horizontal 30% to 100%"
+    },
+    "description": "Uneven diagonal shadow cast across the package label",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_jpeg_q20.jpg": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "jpeg_compression",
+    "parameters": {
+      "quality": 20
+    },
+    "description": "Severe 8x8 block compression artifacts",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_perspective.png": {
+    "category": "Category 4: OCR-Difficult Images",
+    "type": "perspective_warp",
+    "parameters": {
+      "skew_pct": 5
+    },
+    "description": "Non-planar camera angle perspective skew",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_rot_5.png": {
+    "category": "Category 6: Rotated / Distorted Labels",
+    "type": "rotation",
+    "parameters": {
+      "angle_degrees": 5
+    },
+    "description": "Package label rotated by 5 degrees",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_rot_10.png": {
+    "category": "Category 6: Rotated / Distorted Labels",
+    "type": "rotation",
+    "parameters": {
+      "angle_degrees": 10
+    },
+    "description": "Package label rotated by 10 degrees",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_rot_15.png": {
+    "category": "Category 6: Rotated / Distorted Labels",
+    "type": "rotation",
+    "parameters": {
+      "angle_degrees": 15
+    },
+    "description": "Package label rotated by 15 degrees",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_rot_neg10.png": {
+    "category": "Category 6: Rotated / Distorted Labels",
+    "type": "rotation",
+    "parameters": {
+      "angle_degrees": -10
+    },
+    "description": "Package label rotated by -10 degrees",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "test_image2_rot_neg15.png": {
+    "category": "Category 6: Rotated / Distorted Labels",
+    "type": "rotation",
+    "parameters": {
+      "angle_degrees": -15
+    },
+    "description": "Package label rotated by -15 degrees",
+    "ground_truth_reference": "test_image2.png"
+  },
+  "synthetic_missing_mrp.png": {
+    "category": "Category 2: Missing Declarations",
+    "type": "missing_mrp",
+    "expected_result": {
+      "mrp_status": "MISSING",
+      "overall_status": "REVIEW_REQUIRED"
+    },
+    "description": "Label with all required declarations except MRP"
+  },
+  "synthetic_missing_quantity.png": {
+    "category": "Category 2: Missing Declarations",
+    "type": "missing_quantity",
+    "expected_result": {
+      "net_quantity_status": "MISSING",
+      "overall_status": "REVIEW_REQUIRED"
+    },
+    "description": "Label with all required declarations except Net Quantity"
+  },
+  "synthetic_missing_manufacturer.png": {
+    "category": "Category 2: Missing Declarations",
+    "type": "missing_manufacturer",
+    "expected_result": {
+      "manufacturer_status": "MISSING",
+      "overall_status": "REVIEW_REQUIRED"
+    },
+    "description": "Label omitting manufacturer name and address"
+  },
+  "synthetic_deliberate_zero_mrp.png": {
+    "category": "Category 3: Deliberate Compliance Violations",
+    "type": "invalid_mrp_zero",
+    "expected_result": {
+      "mrp_status": "FAIL",
+      "overall_status": "NON_COMPLIANT"
+    },
+    "description": "Deliberate violation: declared MRP is \u20b90.00 (non-positive numeric)"
+  },
+  "synthetic_deliberate_date_inconsistency.png": {
+    "category": "Category 3: Deliberate Compliance Violations",
+    "type": "date_chronology_violation",
+    "expected_result": {
+      "date_validation_status": "FAIL",
+      "overall_status": "NON_COMPLIANT"
+    },
+    "description": "Deliberate violation: Use-by date (10/05/2023) precedes Mfg date (15/08/2024)"
+  },
+  "synthetic_pin_code_trap.png": {
+    "category": "Category 5: OCR Traps",
+    "type": "pincode_vs_date",
+    "expected_result": {
+      "packed_date": "12/03/2024",
+      "pin_not_date": true
+    },
+    "description": "Contains PIN 400057 and Batch NG-400057-X, must correctly map PKD 12/03/2024"
+  },
+  "synthetic_multiple_dates.png": {
+    "category": "Category 5: OCR Traps",
+    "type": "multiple_dates",
+    "expected_result": {
+      "mfg_or_pkd": "05/01/2024 or 01/01/2024",
+      "use_by": "31/12/2024"
+    },
+    "description": "Contains distinct MFG, PKD, and USE BY dates"
+  },
+  "synthetic_multiple_phones.png": {
+    "category": "Category 5: OCR Traps",
+    "type": "multiple_phones",
+    "expected_result": {
+      "consumer_care_phone": "1800-220-4444"
+    },
+    "description": "Contains factory phone and consumer grievance helpline"
+  },
+  "synthetic_embedded_mrp.png": {
+    "category": "Category 5: OCR Traps",
+    "type": "embedded_mrp",
+    "expected_result": {
+      "mrp": "199.00 or 199",
+      "tax_inclusive": true
+    },
+    "description": "MRP embedded in promotional header phrase"
+  },
+  "synthetic_quantity_extra.png": {
+    "category": "Category 5: OCR Traps",
+    "type": "quantity_extra_variant",
+    "expected_result": {
+      "net_quantity_contains": "110g"
+    },
+    "description": "Composite quantity formulation with promotional extra grammage"
+  },
+  "synthetic_adversarial_promo.png": {
+    "category": "Category 8: Adversarial Label Content",
+    "type": "adversarial_promo_distraction",
+    "expected_result": {
+      "mrp": "100.00",
+      "product_name_not": "100% PURE"
+    },
+    "description": "Adversarial promotional copy with competing prices and claims"
+  }
+}
