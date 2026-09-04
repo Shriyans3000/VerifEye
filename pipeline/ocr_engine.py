@@ -1,23 +1,40 @@
+import gc
 import json
+import logging
 import os
+import threading
 from pathlib import Path
+
+# Configure single-threaded CPU execution and low-memory allocator BEFORE Paddle initialization
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+
 from paddleocr import PaddleOCR
 
+logger = logging.getLogger("verifeye.ocr")
+
+_OCR_LOCK = threading.Lock()
 _OCR_INSTANCE = None
 
 
 def get_ocr_engine():
     global _OCR_INSTANCE
     if _OCR_INSTANCE is None:
-        print("Loading PaddleOCR mobile instance (lazy singleton)...")
-        _OCR_INSTANCE = PaddleOCR(
-            lang="en",
-            ocr_version="PP-OCRv4",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            enable_mkldnn=False
-        )
+        with _OCR_LOCK:
+            if _OCR_INSTANCE is None:
+                logger.info("[OCR INIT START] Loading lightweight PaddleOCR mobile instance (single-threaded CPU)...")
+                _OCR_INSTANCE = PaddleOCR(
+                    lang="en",
+                    ocr_version="PP-OCRv4",
+                    use_doc_orientation_classify=False,
+                    use_doc_unwarping=False,
+                    use_textline_orientation=False,
+                    enable_mkldnn=False,
+                    cpu_threads=1
+                )
+                logger.info("[OCR INIT END] PaddleOCR mobile instance initialized successfully.")
     return _OCR_INSTANCE
 
 
@@ -26,9 +43,10 @@ def run_ocr(image_path: str | Path, output_file: str | Path | None = None) -> li
     if not image_path.exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
 
+    logger.info(f"[OCR PREDICT START] Initiating PaddleOCR prediction on: {image_path}")
     ocr = get_ocr_engine()
-    print(f"Running OCR on: {image_path}")
     results = ocr.predict(str(image_path))
+    logger.info(f"[OCR PREDICT END] Raw OCR prediction finished for: {image_path}")
 
     output = []
     for result in results:
@@ -54,6 +72,7 @@ def run_ocr(image_path: str | Path, output_file: str | Path | None = None) -> li
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
 
+    gc.collect()
     return output
 
 
