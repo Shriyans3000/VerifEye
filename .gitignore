@@ -32,3 +32,5 @@ node_modules/
 dist/
 .pytest_cache/
 scratch_real_resp.json
+scratch/
+test_label_ocr.json

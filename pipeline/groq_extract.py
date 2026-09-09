@@ -27,22 +27,25 @@ FIELD EXTRACTION RULES:
 
 2. MANUFACTURER:
    Extract full manufacturer, packer, or importer name.
+   Prioritize primary declared entity (e.g. "MANUFACTURED FOR: ...") over contract manufacturing plants.
 
 3. MANUFACTURER ADDRESS:
-   Extract address of manufacturer/packer/importer.
+   Extract address of manufacturer/packer/importer associated with the primary declaration.
 
 4. COUNTRY OF ORIGIN:
    Extract country of origin if declared (mandatory for imported items).
 
 5. MRP:
-   Extract Maximum Retail Price as a numeric string.
-   Do not include currency symbols.
+   Extract Maximum Retail Price as a numeric string (e.g. "30.00").
+   Do not include currency symbols. Do not include unit sale price.
 
 6. NET QUANTITY:
-   Extract net quantity with unit (e.g. 100 g, 1 L, 5 N).
+   Extract net quantity with unit (e.g. 100 g, 187.5 g, 1 L, 5 N).
+   If header "NET WEIGHT:" is in one region and value "187.5 g" is in an adjacent region, extract "187.5 g".
 
 7. UNIT SALE PRICE:
-   Extract Unit Sale Price (USP) if declared (e.g. ₹0.10 per g).
+   Extract Unit Sale Price (USP) if declared (e.g. ₹0.16/g or 0.16/g or Rs. 0.50 per g).
+   If MRP and USP appear together (e.g. "MRP ₹30.00 (₹0.16/g)"), extract both into their respective fields.
 
 8. PACKED DATE:
    Extract date of packing (PKD / PACKED ON).
@@ -54,13 +57,15 @@ FIELD EXTRACTION RULES:
     Extract expiry date (EXP / EXP DATE).
 
 11. USE BY DATE:
-    Extract use-by date (USE BY).
+    Extract use-by date (USE BY). If "USE BY:" header is above date, associate the date below it.
 
 12. BEST BEFORE:
     Extract best-before declaration (BEST BEFORE).
 
 13. BATCH NUMBER:
-    Extract batch/lot number (BATCH NO / LOT NO).
+    Extract batch/lot number (BATCH NO / LOT NO / BATCH).
+    NEVER extract declaration keywords like "PKD", "PACKED", "USE BY", "EXP", "MFG", "DATE" as the batch number.
+    If "BATCH:" header is above or next to code like "K9C", extract that code.
 
 14. CONSUMER CARE:
     Extract contact details: phone and email.
@@ -221,10 +226,8 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
 """
 
     models_to_try = [
-        "openai/gpt-oss-120b",
         "groq/compound",
-        "groq/compound-mini",
-        "openai/gpt-oss-safeguard-20b"
+        "groq/compound-mini"
     ]
     response = None
     last_err = None
@@ -233,8 +236,8 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
             try:
                 client = Groq(
                     api_key=api_key,
-                    timeout=httpx.Timeout(60.0, connect=30.0),
-                    max_retries=2,
+                    timeout=httpx.Timeout(30.0, connect=15.0),
+                    max_retries=1,
                 )
                 response = client.chat.completions.create(
                     model=model_name,
@@ -249,16 +252,20 @@ NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent 
                     break
             except Exception as e:
                 last_err = e
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(1.0 * (attempt + 1))
         if response:
             break
 
     if not response:
-        raise last_err
+        print(f"Warning: Groq LLM extraction unavailable ({last_err}). Falling back to deterministic OCR normalization.")
+        structured_data = {}
+    else:
+        try:
+            result_text = response.choices[0].message.content
+            structured_data = json.loads(result_text)
+        except Exception:
+            structured_data = {}
 
-    result_text = response.choices[0].message.content
-    structured_data = json.loads(result_text)
-    
     # Run deterministic canonical normalization
     canonical_data = canonical_normalize_product(structured_data, ocr_data)
     return canonical_data

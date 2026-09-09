@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pipeline.ocr_engine import run_ocr
 from pipeline.normalize_ocr import normalize_ocr_data
+from pipeline.readability_engine import analyze_readability
 from pipeline.groq_extract import extract_structured_product
 from pipeline.compliance_engine import evaluate_compliance
 from backend.config import GROQ_API_KEY
@@ -48,7 +49,13 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
     # 4. Deterministic Compliance Evaluation
     compliance_result = evaluate_compliance(structured_product)
 
-    # 5. Format Response
+    # 5. Readability & Font Metric Analysis
+    readability_result = analyze_readability(
+        ocr_results=combined_ocr_result,
+        image_paths=resolved_paths
+    )
+
+    # 6. Format Response
     return {
         "success": True,
         "status": compliance_result.get("overall_status", "REVIEW_REQUIRED"),
@@ -62,6 +69,7 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
         "product": structured_product,
         "checks": compliance_result.get("checks", []),
         "validation_checks": compliance_result.get("validation_checks", []),
+        "readability": readability_result,
         "meta": {
             "images_processed": len(resolved_paths),
             "regions_detected": len(combined_ocr_result),

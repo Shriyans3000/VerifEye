@@ -65,6 +65,7 @@ def save_inspection(analysis_result: dict, filename: str = "") -> dict:
         "product": analysis_result.get("product", {}),
         "checks": analysis_result.get("checks", []),
         "validation_checks": analysis_result.get("validation_checks", []),
+        "readability": analysis_result.get("readability"),
         "meta": analysis_result.get("meta", {}),
         "created_at": datetime.utcnow().isoformat()
     }

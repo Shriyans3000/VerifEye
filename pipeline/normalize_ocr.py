@@ -35,14 +35,24 @@ def normalize_ocr_data(raw_ocr: list[dict]) -> dict:
 
     mrp = None
     mrp_region = None
-    mrp_rx = re.compile(r"(?:^|\b)(?:MRP|MAX(?:IMUM)?\s*RETAIL\s*PRICE)\s*[:.]?\s*(?:RS\.?|₹)?\s*([0-9]+(?:[.,][0-9]{1,2})?)", re.I)
+    usp_cand = None
+    usp_region = None
+
+    # Pattern for merged MRP and USP e.g. "MRP30.000.16/g)" or "MRP ₹30.00 (₹0.16 / g)"
+    mrp_merged_rx = re.compile(
+        r"(?:^|\b)(?:MRP|MAX(?:IMUM)?\s*RETAIL\s*PRICE)\s*[:.]?\s*(?:RS\.?|₹)?\s*([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:\(?\s*(?:RS\.?|₹)?\s*([0-9]+(?:[.,][0-9]+)?\s*(?:/|\s*PER\s*)\s*(?:G|KG|GM|ML|L|LTR|LITRE|LITER|CM|M|UNIT|NO\.?\b|N\b))\)?)?",
+        re.I
+    )
     rupee_rx = re.compile(r"(?:RS\.?|₹)\s*([0-9]+(?:[.,][0-9]{1,2})?)", re.I)
     for item in regions:
         text = item["text"]
-        m = mrp_rx.search(text)
+        m = mrp_merged_rx.search(text)
         if m:
             mrp = m.group(1).replace(",", "")
             mrp_region = item
+            if m.group(2):
+                usp_cand = m.group(2).strip()
+                usp_region = item
             break
     if mrp is None:
         for item in regions:
@@ -60,21 +70,28 @@ def normalize_ocr_data(raw_ocr: list[dict]) -> dict:
             tax_region = item
             break
 
-    usp_region = find_best(regions, r"(?:RS\.?|₹)\s*[0-9]+(?:[.,][0-9]+)?\s+PER\s+(?:G|KG|ML|L|LITRE|LITER|CM|M|UNIT|NUMBER|NO\.?\b)")
+    if not usp_region:
+        usp_region = find_best(
+            regions,
+            r"(?:(?:RS\.?|₹)\s*)?[0-9]+(?:[.,][0-9]+)?\s*(?:/|\s+PER\s+)\s*(?:G|KG|GM|ML|L|LTR|LITRE|LITER|CM|M|UNIT|NUMBER|NO\.?\b|N\b)"
+        )
+        if usp_region:
+            um = re.search(r"(?:(?:RS\.?|₹)\s*)?[0-9]+(?:[.,][0-9]+)?\s*(?:/|\s+PER\s+)\s*(?:G|KG|GM|ML|L|LTR|LITRE|LITER|CM|M|UNIT|NUMBER|NO\.?\b|N\b)", usp_region["text"], re.I)
+            usp_cand = um.group(0).strip() if um else usp_region["text"]
 
     # Date regex: standard delimited dates AND dot-matrix compressed dates preceded by explicit date keywords
-    date_pattern = r"(?:PKD|PACKED|PACKING|MFG|MANUFACT(?:URED)?|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)[.:\s]*(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4,8})"
+    date_pattern = r"(?:PKD|PACKED|PACKING|MFG|MANUFACT(?:URED)?|MFR|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)[.:\s]*(?:\d{1,2}[/. -]\d{1,2}[/. -]\d{2,4}|\d{1,2}[/. -]\d{2,4}|(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[a-z]*[/. -]?\d{2,4}|\d{4,8})"
     date_region = find_best(regions, date_pattern)
     if not date_region:
-        # Fallback to standard delimited date anywhere near date keywords
-        date_region = find_best(regions, r"(?:PKD|PACKED|MFG|MANUFACT(?:URED)?|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)\b.*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}")
+        # Fallback to standard date string anywhere in text
+        date_region = find_best(regions, r"(?:PKD|PACKED|MFG|MANUFACT(?:URED)?|MFR|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?).*(?:\d{1,2}[/. -]\d{1,2}[/. -]\d{2,4}|\d{1,2}[/. -]\d{2,4})")
 
     associations = {
         "mrp_candidate": mrp,
         "mrp_evidence": mrp_region,
         "tax_inclusive_mrp": True if tax_region else None,
         "tax_inclusive_evidence": tax_region,
-        "unit_sale_price_candidate": usp_region["text"] if usp_region else None,
+        "unit_sale_price_candidate": usp_cand,
         "unit_sale_price_evidence": usp_region,
         "date_candidate_evidence": date_region,
     }

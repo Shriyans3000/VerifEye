@@ -29,6 +29,8 @@ export interface ProductInformation {
   tax_inclusive_mrp: boolean | null;
   fssai_number: string | null;
   dimensions: string | null;
+  declared_quantity?: string | null;
+  calculated_total_quantity?: string | null;
 }
 
 export interface CheckItem {
@@ -63,6 +65,47 @@ export interface InspectionMeta {
   timestamp: string;
 }
 
+export interface ReadabilityRegion {
+  ocr_id: number;
+  image_index: number;
+  text: string;
+  confidence: number;
+  bbox: any;
+  height_px: number;
+  width_px: number;
+  normalized_height_pct: number;
+  area_px: number;
+  contrast: number;
+  contrast_rating: string;
+  sharpness: number;
+  sharpness_rating: string;
+  readability_status: string;
+  reason: string;
+}
+
+export interface ReadabilitySummary {
+  overall_status: string;
+  total_regions: number;
+  readable_count: number;
+  review_count: number;
+  small_text_count: number;
+  low_contrast_count: number;
+  blurry_count: number;
+  low_confidence_count: number;
+  average_text_height_px: number;
+  smallest_detected_text_px: number;
+  average_confidence: number;
+  physical_font_size: {
+    status: string;
+    reason: string;
+  };
+}
+
+export interface ReadabilityData {
+  summary: ReadabilitySummary;
+  regions: ReadabilityRegion[];
+}
+
 export interface AnalyzeResponse {
   inspection_id?: string;
   filename?: string;
@@ -74,6 +117,7 @@ export interface AnalyzeResponse {
   product: ProductInformation;
   checks: CheckItem[];
   validation_checks: ValidationItem[];
+  readability?: ReadabilityData;
   meta?: InspectionMeta;
 }
 

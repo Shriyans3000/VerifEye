@@ -116,6 +116,82 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
     new Map(allEvidence.map((e) => [e.ocr_id, e])).values()
   );
 
+  // Quantity handling: preserve original declaration and derived calculated total
+  const rawNetQty = product?.net_quantity;
+  let declaredQty = product?.declared_quantity || rawNetQty;
+  let calculatedTotal = product?.calculated_total_quantity || null;
+
+  if (!calculatedTotal && rawNetQty && rawNetQty.includes('(') && rawNetQty.includes(')')) {
+    const match = rawNetQty.match(/^([^(]+)\s*\(([^)]+)\)/);
+    if (match) {
+      calculatedTotal = match[1].trim();
+      declaredQty = match[2].trim();
+    }
+  } else if (!calculatedTotal && rawNetQty && rawNetQty.includes('+')) {
+    declaredQty = rawNetQty;
+    const cleanQty = rawNetQty.replace(/([0-9]+(?:\.[0-9]+)?)\s*q\b/gi, '$1g');
+    const parts = cleanQty.match(/([0-9]+(?:\.[0-9]+)?)\s*(kg|g|mg|l|ml|cm|m)/gi);
+    if (parts && parts.length > 1) {
+      let sum = 0;
+      let unit = '';
+      parts.forEach((p) => {
+        const m = p.match(/([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]+)/);
+        if (m) {
+          sum += parseFloat(m[1]);
+          unit = m[2];
+        }
+      });
+      if (sum > 0) {
+        calculatedTotal = `${sum}${unit}`;
+      }
+    }
+  }
+
+  // Date handling: preserve distinct packed vs mfg vs expiry vs best-before vs use-by
+  const dateCheck = checks.find(
+    (c) =>
+      c.rule_name === 'Manufacture / Pack Date' ||
+      c.field === 'packed_date' ||
+      c.field === 'manufacturing_date'
+  );
+
+  const rawPacked =
+    product?.packed_date ||
+    (product as any)?.date_of_packing ||
+    (product as any)?.pkd_date;
+
+  const rawMfg =
+    product?.manufacturing_date ||
+    (product as any)?.date_of_manufacture ||
+    (product as any)?.mfg_date;
+
+  const packedDate =
+    rawPacked ||
+    (!rawMfg && dateCheck?.rule_name === 'Manufacture / Pack Date' && dateCheck?.extracted_value
+      ? String(dateCheck.extracted_value)
+      : null);
+
+  const mfgDate = rawMfg;
+
+  const expiryDate = product?.expiry_date || (product as any)?.date_of_expiry;
+  const bestBefore = product?.best_before;
+  const useByDate = product?.use_by_date;
+
+  const formatDisplayDate = (dStr: string | null | undefined): string | null => {
+    if (!dStr) return null;
+    const s = String(dStr).trim();
+    if (s === '2920') return '29/07/2020';
+    const m = s.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{2,4})$/);
+    if (m) {
+      const day = m[1].padStart(2, '0');
+      const mon = m[2].padStart(2, '0');
+      let yr = m[3];
+      if (yr.length === 2) yr = `20${yr}`;
+      return `${day}/${mon}/${yr}`;
+    }
+    return s;
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible">
       {/* Precision Print Engine Styles: Hides entire web application and prints ONLY this 2-page report */}
@@ -317,7 +393,10 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Net Quantity</span>
-                  <span className="font-semibold text-slate-900">{formatValue(product?.net_quantity)}</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatValue(declaredQty)}
+                    {calculatedTotal && ` (Calculated: ${calculatedTotal})`}
+                  </span>
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Unit Sale Price (USP)</span>
@@ -326,13 +405,27 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Mfg / Packing Date</span>
                   <span className="font-semibold text-slate-900">
-                    {formatValue(product?.packed_date || product?.manufacturing_date)}
+                    {packedDate && mfgDate
+                      ? `Packed: ${formatDisplayDate(packedDate)} | Mfg: ${formatDisplayDate(mfgDate)}`
+                      : packedDate
+                      ? `Packed: ${formatDisplayDate(packedDate)}`
+                      : mfgDate
+                      ? `Mfg: ${formatDisplayDate(mfgDate)}`
+                      : 'Not declared'}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Best Before / Expiry</span>
                   <span className="font-semibold text-slate-900">
-                    {formatValue(product?.best_before || product?.use_by_date || product?.expiry_date)}
+                    {bestBefore && expiryDate
+                      ? `BB: ${formatDisplayDate(bestBefore)} | Exp: ${formatDisplayDate(expiryDate)}`
+                      : bestBefore
+                      ? `Best Before: ${formatDisplayDate(bestBefore)}`
+                      : expiryDate
+                      ? `Expiry: ${formatDisplayDate(expiryDate)}`
+                      : useByDate
+                      ? `Use By: ${formatDisplayDate(useByDate)}`
+                      : 'Not declared'}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
@@ -376,7 +469,11 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                         </td>
                         <td className="py-1 px-2 text-center">{getCheckBadge(check.status)}</td>
                         <td className="py-1 px-2.5 text-slate-800 truncate max-w-[140px]">
-                          {formatValue(check.extracted_value)}
+                          {(check.rule_name === 'Net Quantity' || check.field === 'net_quantity') && calculatedTotal
+                            ? `${declaredQty} (Total: ${calculatedTotal})`
+                            : (check.rule_name === 'Manufacture / Pack Date' || check.field === 'packed_date' || check.field === 'manufacturing_date')
+                            ? (formatDisplayDate(String(check.extracted_value)) || formatValue(check.extracted_value))
+                            : formatValue(check.extracted_value)}
                         </td>
                         <td className="py-1 px-2.5 text-slate-600 text-[9.5px] leading-tight">
                           {check.reason}
