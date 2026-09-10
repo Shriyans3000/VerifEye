@@ -62,7 +62,7 @@ def analyze_readability(
     millimetres. Physical compliance is explicitly declared as NOT CALIBRATED.
     """
     # Preload images and store dimensions and grayscale arrays
-    images_info = []
+    images_info: list[Any] = []
     for idx, img_path in enumerate(image_paths):
         try:
             resolved = Path(img_path).resolve()
@@ -80,7 +80,7 @@ def analyze_readability(
             logger.error(f"Failed to load image index {idx} ({img_path}) for readability analysis: {e}")
             images_info.append(None)
 
-    regions_analysis = []
+    regions_analysis: list[dict[str, Any]] = []
 
     for item in ocr_results:
         ocr_id = item.get("id", 0)
@@ -202,17 +202,36 @@ def analyze_readability(
     # Summary calculations
     total_regions = len(regions_analysis)
     if total_regions > 0:
-        valid_heights = [r["height_px"] for r in regions_analysis if r["height_px"] > 0]
-        avg_height = round(sum(valid_heights) / len(valid_heights), 1) if valid_heights else 0
-        min_height = min(valid_heights) if valid_heights else 0
-        avg_conf = round(sum(r["confidence"] for r in regions_analysis) / total_regions, 3)
+        valid_heights: list[float] = []
+        for r in regions_analysis:
+            try:
+                h_val = float(r.get("height_px", 0))
+                if h_val > 0:
+                    valid_heights.append(h_val)
+            except (ValueError, TypeError):
+                pass
 
-        readable_count = sum(1 for r in regions_analysis if r["readability_status"] == "READABLE")
-        small_count = sum(1 for r in regions_analysis if r["readability_status"] == "SMALL TEXT")
-        contrast_count = sum(1 for r in regions_analysis if r["readability_status"] == "LOW CONTRAST")
-        blurry_count = sum(1 for r in regions_analysis if r["readability_status"] == "BLURRY")
-        low_conf_count = sum(1 for r in regions_analysis if r["readability_status"] == "LOW OCR CONFIDENCE")
-        review_count = sum(1 for r in regions_analysis if r["readability_status"] in ("REVIEW", "SMALL TEXT", "LOW CONTRAST", "BLURRY", "LOW OCR CONFIDENCE"))
+        if valid_heights:
+            avg_height = round(float(sum(valid_heights)) / len(valid_heights), 1)
+            min_height = round(float(min(valid_heights)), 1)
+        else:
+            avg_height = 0.0
+            min_height = 0.0
+
+        total_conf = 0.0
+        for r in regions_analysis:
+            try:
+                total_conf += float(r.get("confidence", 0.0))
+            except (ValueError, TypeError):
+                pass
+        avg_conf = round(total_conf / total_regions, 3)
+
+        readable_count = sum(1 for r in regions_analysis if r.get("readability_status") == "READABLE")
+        small_count = sum(1 for r in regions_analysis if r.get("readability_status") == "SMALL TEXT")
+        contrast_count = sum(1 for r in regions_analysis if r.get("readability_status") == "LOW CONTRAST")
+        blurry_count = sum(1 for r in regions_analysis if r.get("readability_status") == "BLURRY")
+        low_conf_count = sum(1 for r in regions_analysis if r.get("readability_status") == "LOW OCR CONFIDENCE")
+        review_count = sum(1 for r in regions_analysis if r.get("readability_status") in ("REVIEW", "SMALL TEXT", "LOW CONTRAST", "BLURRY", "LOW OCR CONFIDENCE"))
 
         # Overall rating
         review_ratio = review_count / total_regions
