@@ -1,12 +1,12 @@
 from datetime import datetime
 from pathlib import Path
 
-from pipeline.ocr_engine import run_ocr
-from pipeline.normalize_ocr import normalize_ocr_data
-from pipeline.readability_engine import analyze_readability
-from pipeline.groq_extract import extract_structured_product
-from pipeline.compliance_engine import evaluate_compliance
-from backend.config import GROQ_API_KEY
+from pipeline.ocr_engine import run_ocr  # pyrefly: ignore [missing-import] # type: ignore
+from pipeline.normalize_ocr import normalize_ocr_data  # pyrefly: ignore [missing-import] # type: ignore
+from pipeline.readability_engine import analyze_readability  # pyrefly: ignore [missing-import] # type: ignore
+from pipeline.groq_extract import extract_structured_product  # pyrefly: ignore [missing-import] # type: ignore
+from pipeline.compliance_engine import evaluate_compliance  # pyrefly: ignore [missing-import] # type: ignore
+from backend.config import GROQ_API_KEY  # pyrefly: ignore [missing-import] # type: ignore
 
 
 def analyze_images(image_paths: list[str | Path]) -> dict:

@@ -1,0 +1,18 @@
+[tool.pyrefly]
+python-interpreter-path = ".venv/Scripts/python.exe"
+extraSearchPaths = [
+    ".",
+    "backend",
+    "pipeline",
+    ".venv/Lib/site-packages"
+]
+disabled-rules = ["missing-import"]
+
+[tool.pyright]
+extraPaths = [
+    ".",
+    "backend",
+    "pipeline",
+    ".venv/Lib/site-packages"
+]
+reportMissingImports = false
