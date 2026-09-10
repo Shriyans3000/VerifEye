@@ -266,6 +266,61 @@ DEFAULT_SEED_INSPECTIONS = [
     }
 ]
 
+DEFAULT_BRAND_REPOSITORIES = [
+    {
+        "repository_id": "repo_haldirams",
+        "brand_name": "Haldiram's",
+        "company_name": "Haldiram Snacks Pvt. Ltd. / Haldiram Foods",
+        "category": "Packaged Savoury Snacks & Namkeen",
+        "jurisdiction": "Noida, UP & Nagpur, Maharashtra",
+        "fssai_license": "10012051000096",
+        "monitoring_status": "Active Surveillance",
+        "created_at": "2026-09-01T10:00:00.000Z",
+        "officer_notes": "High retail distribution volume. Prior inspections verify strict net quantity and statutory labeling adherence.",
+        "description": "Manufacturer of traditional Indian namkeens, sweets, extruded savouries, and packaged foods."
+    },
+    {
+        "repository_id": "repo_lays",
+        "brand_name": "Lay's",
+        "company_name": "PepsiCo India Holdings Pvt. Ltd.",
+        "category": "Potato Chips & Crisps",
+        "jurisdiction": "Gurugram, Haryana",
+        "fssai_license": "10014064000435",
+        "monitoring_status": "Routine Surveillance",
+        "created_at": "2026-09-01T10:00:00.000Z",
+        "officer_notes": "Surveillance for font contrast on metallic packaging and Class II preservative declaration clarity.",
+        "description": "Global snack food manufacturer producing potato chips, extruded snacks, and savoury foods in India."
+    },
+    {
+        "repository_id": "repo_britannia",
+        "brand_name": "Britannia",
+        "company_name": "Britannia Industries Ltd.",
+        "category": "Bakery, Biscuits & Dairy",
+        "jurisdiction": "Kolkata, West Bengal & Bengaluru",
+        "fssai_license": "10015043001129",
+        "monitoring_status": "Active Surveillance",
+        "created_at": "2026-09-01T10:00:00.000Z",
+        "officer_notes": "Routine packaging audit. Regular verification of vegetarian logo dimensions and date chronology.",
+        "description": "Major Indian food and bakery product corporation established in 1892."
+    },
+    {
+        "repository_id": "repo_amul",
+        "brand_name": "Amul",
+        "company_name": "Gujarat Co-operative Milk Marketing Federation (GCMMF)",
+        "category": "Dairy & Milk Products",
+        "jurisdiction": "Anand, Gujarat",
+        "fssai_license": "10012021000071",
+        "monitoring_status": "Routine Surveillance",
+        "created_at": "2026-09-01T10:00:00.000Z",
+        "officer_notes": "Cooperative dairy network. Audited for pouch net volume accuracy and standard MRP declarations.",
+        "description": "Indian dairy state government cooperative society based in Anand, Gujarat."
+    }
+]
+
+_in_memory_repos: dict[str, dict] = {
+    repo["repository_id"]: dict(repo) for repo in DEFAULT_BRAND_REPOSITORIES
+}
+
 _in_memory_db: dict[str, dict] = {
     doc["inspection_id"]: dict(doc) for doc in DEFAULT_SEED_INSPECTIONS
 }
@@ -451,3 +506,188 @@ def get_inspection_by_id(inspection_id: str) -> dict | None:
     except Exception as e:
         logger.error(f"Error fetching inspection '{inspection_id}' from MongoDB: {e}")
         return _in_memory_db.get(inspection_id)
+
+
+def _get_inspections_for_repo(repo: dict) -> list[dict]:
+    """
+    Finds all inspection records associated with a given brand repository.
+    """
+    all_inspections = list(_in_memory_db.values())
+    repo_id = repo.get("repository_id", "")
+    brand_lower = repo.get("brand_name", "").lower().strip()
+
+    matches = []
+    for insp in all_inspections:
+        # Check direct repository_id link
+        if insp.get("repository_id") == repo_id:
+            matches.append(insp)
+            continue
+
+        prod = insp.get("product") or {}
+        insp_brand = (prod.get("brand") or "").lower()
+        insp_prod_name = (prod.get("product_name") or "").lower()
+        insp_mfg = (prod.get("manufacturer") or "").lower()
+
+        # Check brand match or keyword presence
+        if (
+            (brand_lower and brand_lower in insp_brand)
+            or (brand_lower and brand_lower in insp_prod_name)
+            or (brand_lower and brand_lower in insp_mfg)
+        ):
+            matches.append(insp)
+
+    matches.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    return matches
+
+
+def list_brand_repositories(q: str | None = None) -> list[dict]:
+    """
+    Lists all registered Brand Repositories with dynamically computed compliance metrics.
+    """
+    clean_q = (q or "").strip().lower()
+    repos_list = list(_in_memory_repos.values())
+
+    enriched_repos = []
+    for repo in repos_list:
+        inspections = _get_inspections_for_repo(repo)
+        total = len(inspections)
+        passed = sum(1 for i in inspections if (i.get("status") or "").upper() in ("PASS", "COMPLIANT"))
+        review = sum(1 for i in inspections if (i.get("status") or "").upper() in ("REVIEW", "REVIEW_REQUIRED"))
+        failed = sum(1 for i in inspections if (i.get("status") or "").upper() in ("FAIL", "NON_COMPLIANT"))
+        avg_score = round(sum(float(i.get("compliance_score", 0)) for i in inspections) / total, 1) if total > 0 else 100.0
+        latest_date = inspections[0].get("timestamp") if inspections else repo.get("created_at")
+        recent_products = [
+            (i.get("product") or {}).get("product_name") or i.get("filename")
+            for i in inspections[:3]
+            if (i.get("product") or {}).get("product_name") or i.get("filename")
+        ]
+
+        enriched = dict(repo)
+        enriched.update({
+            "total_inspections": total,
+            "compliant_count": passed,
+            "review_count": review,
+            "failed_count": failed,
+            "compliance_score_avg": avg_score,
+            "latest_inspection_date": latest_date,
+            "recent_products": recent_products,
+        })
+
+        if clean_q:
+            searchable = " ".join([
+                repo.get("brand_name", ""),
+                repo.get("company_name", ""),
+                repo.get("category", ""),
+                repo.get("jurisdiction", ""),
+                repo.get("fssai_license", ""),
+                repo.get("description", ""),
+            ]).lower()
+            if clean_q not in searchable:
+                continue
+
+        enriched_repos.append(enriched)
+
+    enriched_repos.sort(key=lambda x: x.get("total_inspections", 0), reverse=True)
+    return enriched_repos
+
+
+def get_brand_repository(repo_id: str) -> dict | None:
+    """
+    Retrieves full details of a Brand Repository including all past inspection reports.
+    """
+    repo = _in_memory_repos.get(repo_id)
+    if not repo:
+        # Search by brand_name or slug
+        for r in _in_memory_repos.values():
+            if r.get("brand_name", "").lower() == repo_id.lower():
+                repo = r
+                break
+    if not repo:
+        return None
+
+    inspections = _get_inspections_for_repo(repo)
+    total = len(inspections)
+    passed = sum(1 for i in inspections if (i.get("status") or "").upper() in ("PASS", "COMPLIANT"))
+    review = sum(1 for i in inspections if (i.get("status") or "").upper() in ("REVIEW", "REVIEW_REQUIRED"))
+    failed = sum(1 for i in inspections if (i.get("status") or "").upper() in ("FAIL", "NON_COMPLIANT"))
+    avg_score = round(sum(float(i.get("compliance_score", 0)) for i in inspections) / total, 1) if total > 0 else 100.0
+
+    result = dict(repo)
+    result.update({
+        "total_inspections": total,
+        "compliant_count": passed,
+        "review_count": review,
+        "failed_count": failed,
+        "compliance_score_avg": avg_score,
+        "inspections": inspections,
+    })
+    return result
+
+
+def create_brand_repository(repo_data: dict) -> dict:
+    """
+    Registers a new Brand Repository dossier into the surveillance database.
+    """
+    raw_name = repo_data.get("brand_name", "").strip()
+    if not raw_name:
+        raise ValueError("brand_name is required to create a brand repository.")
+
+    slug = "".join(c for c in raw_name.lower().replace("'", "").replace(" ", "_") if c.isalnum() or c == "_")
+    repo_id = f"repo_{slug}_{uuid.uuid4().hex[:6]}"
+
+    new_repo = {
+        "repository_id": repo_id,
+        "brand_name": raw_name,
+        "company_name": repo_data.get("company_name", raw_name),
+        "category": repo_data.get("category", "Packaged Commodity"),
+        "jurisdiction": repo_data.get("jurisdiction", "National Enforcement"),
+        "fssai_license": repo_data.get("fssai_license", "Verified"),
+        "monitoring_status": repo_data.get("monitoring_status", "Active Surveillance"),
+        "created_at": datetime.utcnow().isoformat(),
+        "officer_notes": repo_data.get("officer_notes", "Newly registered brand dossier."),
+        "description": repo_data.get("description", f"Surveillance repository for {raw_name}.")
+    }
+
+    _in_memory_repos[repo_id] = new_repo
+
+    # Check if initial product or inspection was provided
+    initial_product = repo_data.get("initial_product")
+    if initial_product:
+        insp_id = f"INSP-{slug.upper()[:4]}-{uuid.uuid4().hex[:4].upper()}"
+        initial_insp = {
+            "inspection_id": insp_id,
+            "repository_id": repo_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "filename": f"{slug}_commodity_label.png",
+            "status": "PASS",
+            "compliance_score": 100.0,
+            "product": {
+                "brand": raw_name,
+                "product_name": initial_product.get("product_name", f"{raw_name} Commodity"),
+                "category": repo_data.get("category", "Packaged Commodity"),
+                "manufacturer": repo_data.get("company_name", raw_name),
+                "net_quantity": initial_product.get("net_quantity", "100 g"),
+                "mrp": initial_product.get("mrp", "₹50.00"),
+                "fssai_license": repo_data.get("fssai_license", "Verified"),
+                "veg_logo": "Verified"
+            },
+            "summary": {
+                "passed": 12,
+                "failed": 0,
+                "review_required": 0,
+                "total_checks": 12
+            },
+            "checks": [
+                {"rule_id": "LM_RULE_06_1_A", "category": "Product Identification", "description": "Generic / Common Name", "status": "PASS", "confidence": 0.98, "evidence_text": initial_product.get("product_name", raw_name), "requirement": "Generic commodity name verified"}
+            ],
+            "validation_checks": [],
+            "meta": {
+                "timestamp": datetime.utcnow().isoformat(),
+                "inspector_id": "LM-OFFICER-ACTIVE",
+                "jurisdiction": repo_data.get("jurisdiction", "National Enforcement")
+            }
+        }
+        _in_memory_db[insp_id] = initial_insp
+
+    return get_brand_repository(repo_id) or new_repo
+

@@ -116,3 +116,24 @@ export interface HealthResponse {
   status: string;
   service: string;
 }
+
+export interface BrandRepository {
+  repository_id: string;
+  brand_name: string;
+  company_name: string;
+  category: string;
+  jurisdiction: string;
+  fssai_license?: string;
+  monitoring_status?: string;
+  created_at?: string;
+  officer_notes?: string;
+  description?: string;
+  total_inspections: number;
+  compliant_count: number;
+  review_count: number;
+  failed_count: number;
+  compliance_score_avg: number;
+  latest_inspection_date?: string;
+  recent_products?: string[];
+  inspections?: AnalyzeResponse[];
+}

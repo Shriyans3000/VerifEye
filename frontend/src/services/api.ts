@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AnalyzeResponse, HealthResponse } from '../types/api';
+import { AnalyzeResponse, HealthResponse, BrandRepository } from '../types/api';
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || '/api';
@@ -99,6 +99,42 @@ export const fetchInspectionById = async (id: string): Promise<AnalyzeResponse |
   } catch (error) {
     console.error(`Failed to fetch inspection ${id}:`, error);
     return null;
+  }
+};
+
+export const fetchBrandRepositories = async (q?: string): Promise<BrandRepository[]> => {
+  try {
+    const params: Record<string, any> = {};
+    if (q && q.trim()) {
+      params.q = q.trim();
+    }
+    const response = await client.get<BrandRepository[]>('/repositories', {
+      params,
+    });
+    return response.data || [];
+  } catch (error) {
+    console.error('Failed to fetch brand repositories:', error);
+    return [];
+  }
+};
+
+export const fetchBrandRepositoryById = async (repoId: string): Promise<BrandRepository | null> => {
+  try {
+    const response = await client.get<BrandRepository>(`/repositories/${encodeURIComponent(repoId)}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch brand repository ${repoId}:`, error);
+    return null;
+  }
+};
+
+export const createBrandRepository = async (data: Partial<BrandRepository> & { initial_product?: any }): Promise<BrandRepository> => {
+  try {
+    const response = await client.post<BrandRepository>('/repositories', data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to create brand repository:', error);
+    throw new Error(error.response?.data?.detail || 'Failed to create brand repository.');
   }
 };
 
