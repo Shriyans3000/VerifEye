@@ -1,9 +1,9 @@
 import logging
 from pathlib import Path
-from typing import Any
-import numpy as np
-from PIL import Image
-import cv2
+from typing import Any, Sequence, Union
+import numpy as np  # pyrefly: ignore [missing-import] # type: ignore
+from PIL import Image  # pyrefly: ignore [missing-import] # type: ignore
+import cv2  # pyrefly: ignore [missing-import] # type: ignore
 
 logger = logging.getLogger("verifeye.readability")
 
@@ -49,8 +49,8 @@ def _get_bbox_extents(bbox: Any, img_w: int, img_h: int) -> tuple[int, int, int,
 
 
 def analyze_readability(
-    ocr_results: list[dict],
-    image_paths: list[str | Path]
+    ocr_results: list[dict] | list[Any],
+    image_paths: Sequence[Union[str, Path]] | list[Any]
 ) -> dict:
     """
     Calculate readability, font height metrics, contrast, and sharpness for every

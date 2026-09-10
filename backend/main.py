@@ -1,10 +1,10 @@
 from fastapi import FastAPI  # pyrefly: ignore [missing-import] # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # pyrefly: ignore [missing-import] # type: ignore
 
-from backend.config import CORS_ORIGINS
-from backend.routes.health import router as health_router
-from backend.routes.analyze import router as analyze_router
-from backend.routes.inspections import router as inspections_router
+from backend.config import CORS_ORIGINS  # pyrefly: ignore [missing-import] # type: ignore
+from backend.routes.health import router as health_router  # pyrefly: ignore [missing-import] # type: ignore
+from backend.routes.analyze import router as analyze_router  # pyrefly: ignore [missing-import] # type: ignore
+from backend.routes.inspections import router as inspections_router  # pyrefly: ignore [missing-import] # type: ignore
 
 app = FastAPI(
     title="VerifEye Legal Metrology Compliance API",
@@ -26,7 +26,7 @@ def warmup_services():
     import threading
     def _warmup():
         try:
-            from pipeline.ocr_engine import get_ocr_engine
+            from pipeline.ocr_engine import get_ocr_engine  # pyrefly: ignore [missing-import] # type: ignore
             get_ocr_engine()
         except Exception:
             pass

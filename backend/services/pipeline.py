@@ -4,7 +4,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Sequence
 
 # Ensure the top-level project root directory is at the front of sys.path
 _PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
@@ -71,7 +71,7 @@ def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
     try:
         readability_result = analyze_readability(
             ocr_results=combined_ocr_result,
-            image_paths=resolved_paths
+            image_paths=resolved_paths  # pyrefly: ignore # type: ignore
         )
     except Exception as read_err:
         logger.warning(f"Readability analysis skipped or failed: {read_err}")
