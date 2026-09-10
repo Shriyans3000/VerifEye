@@ -23,12 +23,14 @@ import {
   Info,
   FlaskConical,
   BookOpen,
+  FolderPlus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AnalyzeResponse, CheckItem, ValidationItem, EvidenceItem } from '../types/api';
 import { EvidenceViewer } from './EvidenceViewer';
 import { FontReadabilityAnalysis } from './FontReadabilityAnalysis';
 import { InspectionReportModal } from './InspectionReportModal';
+import { AddToRepositoryModal } from './AddToRepositoryModal';
 
 interface ResultViewProps {
   data: AnalyzeResponse;
@@ -51,6 +53,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
   const [showAllRegions, setShowAllRegions] = useState<boolean>(false);
   const [expandedEvidenceRows, setExpandedEvidenceRows] = useState<Record<number, boolean>>({});
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [isAddToRepoModalOpen, setIsAddToRepoModalOpen] = useState<boolean>(false);
 
   // Reset selected check index if checks array changes
   useEffect(() => {
@@ -253,15 +256,27 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
             </a>
           </div>
 
-          <button
-            type="button"
-            id="view-inspection-report-btn"
-            onClick={() => setIsReportModalOpen(true)}
-            className="w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow transition border border-slate-700 whitespace-nowrap cursor-pointer"
-          >
-            <FileText className="h-4 w-4 mr-1.5 text-amber-400 flex-shrink-0" />
-            <span>Inspection Report</span>
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              id="add-to-repository-btn"
+              onClick={() => setIsAddToRepoModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 bg-indigo-900 hover:bg-indigo-800 text-indigo-100 rounded text-xs font-bold shadow transition border border-indigo-700 whitespace-nowrap cursor-pointer"
+            >
+              <FolderPlus className="h-4 w-4 mr-1.5 text-indigo-300 flex-shrink-0" />
+              <span>Add to Repository</span>
+            </button>
+
+            <button
+              type="button"
+              id="view-inspection-report-btn"
+              onClick={() => setIsReportModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow transition border border-slate-700 whitespace-nowrap cursor-pointer"
+            >
+              <FileText className="h-4 w-4 mr-1.5 text-amber-400 flex-shrink-0" />
+              <span>Inspection Report</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -795,6 +810,14 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
       <InspectionReportModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
+        data={data}
+        imageFile={imageFile}
+      />
+
+      {/* Add Inspection to Brand Repository Modal */}
+      <AddToRepositoryModal
+        isOpen={isAddToRepoModalOpen}
+        onClose={() => setIsAddToRepoModalOpen(false)}
         data={data}
         imageFile={imageFile}
       />

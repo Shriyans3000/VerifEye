@@ -138,3 +138,21 @@ export const createBrandRepository = async (data: Partial<BrandRepository> & { i
   }
 };
 
+export const addInspectionToRepository = async (
+  repoId: string,
+  inspectionId: string,
+  inspectionData?: any
+): Promise<{ success: boolean; message: string; repository_id: string; brand_name: string }> => {
+  try {
+    const response = await client.post(`/repositories/${encodeURIComponent(repoId)}/inspections`, {
+      inspection_id: inspectionId,
+      inspection: inspectionData,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error(`Failed to add inspection to repository ${repoId}:`, error);
+    throw new Error(error.response?.data?.detail || 'Failed to link inspection to repository.');
+  }
+};
+
+

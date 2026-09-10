@@ -7,6 +7,7 @@ from backend.database import (
     list_brand_repositories,
     get_brand_repository,
     create_brand_repository,
+    link_inspection_to_repository,
 )
 
 logger = logging.getLogger("verifeye.api.inspections")
@@ -98,6 +99,33 @@ async def get_repository_inspections(repository_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving inspections for repository: {str(e)}"
         )
+
+
+@router.post("/repositories/{repository_id}/inspections")
+async def add_inspection_to_repository_endpoint(repository_id: str, request: Request):
+    """
+    Links a completed or active inspection to a brand repository dossier.
+    """
+    try:
+        body = await request.json()
+        inspection_data = body.get("inspection") if isinstance(body.get("inspection"), dict) else body
+        if "inspection_id" in body and "inspection_id" not in inspection_data:
+            inspection_data["inspection_id"] = body["inspection_id"]
+
+        result = link_inspection_to_repository(repository_id, inspection_data)
+        return result
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(ve)
+        )
+    except Exception as e:
+        logger.error(f"Failed to link inspection to repository '{repository_id}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error linking inspection to repository: {str(e)}"
+        )
+
 
 
 @router.get("/inspections")

@@ -12,6 +12,8 @@ export interface ConsumerCare {
 }
 
 export interface ProductInformation {
+  brand?: string | null;
+  category?: string | null;
   product_name: string | null;
   manufacturer: string | null;
   manufacturer_address: string | null;

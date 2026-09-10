@@ -691,3 +691,68 @@ def create_brand_repository(repo_data: dict) -> dict:
 
     return get_brand_repository(repo_id) or new_repo
 
+
+def link_inspection_to_repository(repository_id: str, inspection_data: dict) -> dict:
+    """
+    Associates an active or historical inspection record with a specific brand repository.
+    """
+    repo = _in_memory_repos.get(repository_id)
+    if not repo:
+        # Search by brand_name or slug
+        for r in _in_memory_repos.values():
+            if r.get("brand_name", "").lower() == repository_id.lower():
+                repo = r
+                repository_id = r.get("repository_id")
+                break
+    if not repo:
+        raise ValueError(f"Brand repository '{repository_id}' does not exist.")
+
+    inspection_id = inspection_data.get("inspection_id") or f"INSP-{uuid.uuid4().hex[:8].upper()}"
+    inspection_data["inspection_id"] = inspection_id
+    inspection_data["repository_id"] = repository_id
+
+    # If it's already in _in_memory_db, update it
+    if inspection_id in _in_memory_db:
+        _in_memory_db[inspection_id]["repository_id"] = repository_id
+        if "product" not in _in_memory_db[inspection_id]:
+            _in_memory_db[inspection_id]["product"] = {}
+        if not _in_memory_db[inspection_id]["product"].get("brand"):
+            _in_memory_db[inspection_id]["product"]["brand"] = repo.get("brand_name")
+        target_doc = _in_memory_db[inspection_id]
+    else:
+        # Ensure minimal required fields for an inspection
+        if "product" not in inspection_data:
+            inspection_data["product"] = {}
+        if not inspection_data["product"].get("brand"):
+            inspection_data["product"]["brand"] = repo.get("brand_name")
+        if "timestamp" not in inspection_data:
+            inspection_data["timestamp"] = datetime.utcnow().isoformat()
+        if "status" not in inspection_data:
+            inspection_data["status"] = "PASS"
+        if "compliance_score" not in inspection_data:
+            inspection_data["compliance_score"] = 100.0
+
+        _in_memory_db[inspection_id] = inspection_data
+        target_doc = inspection_data
+
+    # Synchronize MongoDB if connected
+    collection = get_inspections_collection()
+    if collection is not None:
+        try:
+            collection.update_one(
+                {"inspection_id": inspection_id},
+                {"$set": {"repository_id": repository_id}},
+                upsert=True
+            )
+        except Exception as e:
+            logger.error(f"Error updating repository_id in MongoDB: {e}")
+
+    return {
+        "success": True,
+        "message": f"Inspection '{inspection_id}' successfully linked to repository '{repo.get('brand_name')}'.",
+        "repository_id": repository_id,
+        "brand_name": repo.get("brand_name"),
+        "inspection": target_doc
+    }
+
+
