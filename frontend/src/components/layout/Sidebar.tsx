@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Server,
   AlertTriangle,
+  Globe,
 } from 'lucide-react';
 import { checkHealth } from '../../services/api';
 
@@ -33,13 +34,14 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const navItems = [
-    { to: '/', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4 mr-3" /> },
+    { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4 mr-3" /> },
     { to: '/inspection', label: 'New Inspection', icon: <FileCheck className="h-4 w-4 mr-3" /> },
     { to: '/repository', label: 'Repository', icon: <Database className="h-4 w-4 mr-3 text-amber-400" /> },
     { to: '/reports', label: 'Reports', icon: <FileText className="h-4 w-4 mr-3" /> },
     { to: '/guidelines', label: 'Guidelines', icon: <BookOpen className="h-4 w-4 mr-3" /> },
     { to: '/preservatives', label: 'Preservatives Codex', icon: <FlaskConical className="h-4 w-4 mr-3 text-amber-400" /> },
     { to: '/about', label: 'About', icon: <Info className="h-4 w-4 mr-3" /> },
+    { to: '/', label: 'Landing Portal', icon: <Globe className="h-4 w-4 mr-3 text-slate-400" /> },
   ];
 
   return (
