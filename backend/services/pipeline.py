@@ -1,5 +1,20 @@
+from __future__ import annotations
+
+import logging
+import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Union
+
+# Ensure the top-level project root directory is at the front of sys.path
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
+if _PROJECT_ROOT in sys.path:
+    sys.path.remove(_PROJECT_ROOT)
+sys.path.insert(0, _PROJECT_ROOT)
+
+# If 'pipeline' was shadowed as a module name for this script rather than the top-level package, reset it
+if "pipeline" in sys.modules and not hasattr(sys.modules["pipeline"], "__path__"):
+    del sys.modules["pipeline"]
 
 from pipeline.ocr_engine import run_ocr  # pyrefly: ignore [missing-import] # type: ignore
 from pipeline.normalize_ocr import normalize_ocr_data  # pyrefly: ignore [missing-import] # type: ignore
@@ -8,19 +23,22 @@ from pipeline.groq_extract import extract_structured_product  # pyrefly: ignore 
 from pipeline.compliance_engine import evaluate_compliance  # pyrefly: ignore [missing-import] # type: ignore
 from backend.config import GROQ_API_KEY  # pyrefly: ignore [missing-import] # type: ignore
 
+logger = logging.getLogger("verifeye.pipeline")
 
-def analyze_images(image_paths: list[str | Path]) -> dict:
+
+def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
+    """Execute end-to-end Legal Metrology and FSSAI inspection pipeline on one or two images."""
     if not image_paths:
         raise ValueError("At least one image path must be provided.")
 
-    resolved_paths = []
+    resolved_paths: list[Path] = []
     for p in image_paths:
         path_obj = Path(p).resolve()
         if not path_obj.exists():
             raise FileNotFoundError(f"Image file not found: {path_obj}")
         resolved_paths.append(path_obj)
 
-    combined_ocr_result = []
+    combined_ocr_result: list[dict[str, Any]] = []
     region_counter = 0
 
     # 1. Run OCR on each image and unify evidence tagged with image_index
@@ -49,13 +67,42 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
     # 4. Deterministic Compliance Evaluation
     compliance_result = evaluate_compliance(structured_product)
 
-    # 5. Readability & Font Metric Analysis
-    readability_result = analyze_readability(
-        ocr_results=combined_ocr_result,
-        image_paths=resolved_paths
-    )
+    # 5. Readability & Font Metric Analysis (with safe fallback)
+    try:
+        readability_result = analyze_readability(
+            ocr_results=combined_ocr_result,
+            image_paths=resolved_paths
+        )
+    except Exception as read_err:
+        logger.warning(f"Readability analysis skipped or failed: {read_err}")
+        readability_result = {
+            "summary": {
+                "overall_status": "REVIEW",
+                "total_regions": len(combined_ocr_result),
+                "readable_count": 0,
+                "review_count": len(combined_ocr_result),
+                "small_text_count": 0,
+                "low_contrast_count": 0,
+                "blurry_count": 0,
+                "low_confidence_count": 0,
+                "physical_font_size": {
+                    "status": "NOT CALIBRATED",
+                    "reason": "Image does not contain a physical scale reference."
+                }
+            },
+            "regions": []
+        }
 
-    # 6. Format Response
+    # 6. Preservative Analysis Fallback
+    preservative_analysis = compliance_result.get("preservative_analysis")
+    if not preservative_analysis:
+        try:
+            from pipeline.preservative_analysis import analyze_preservatives  # pyrefly: ignore [missing-import] # type: ignore
+            preservative_analysis = analyze_preservatives(structured_product)
+        except Exception:
+            preservative_analysis = {}
+
+    # 7. Format Complete Response
     overall_status = compliance_result.get("overall_status", "REVIEW_REQUIRED")
     return {
         "success": True,
@@ -71,7 +118,7 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
         "product": structured_product,
         "checks": compliance_result.get("checks", []),
         "validation_checks": compliance_result.get("validation_checks", []),
-        "preservative_analysis": compliance_result.get("preservative_analysis", {}),
+        "preservative_analysis": preservative_analysis,
         "readability": readability_result,
         "meta": {
             "images_processed": len(resolved_paths),
@@ -81,5 +128,16 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
     }
 
 
-def analyze_image(image_path: str | Path) -> dict:
+def analyze_image(image_path: str | Path) -> Dict[str, Any]:
+    """Convenience wrapper for single image inspection."""
     return analyze_images([image_path])
+
+
+if __name__ == "__main__":
+    test_img = Path(__file__).resolve().parent.parent.parent / "test_images" / "test_label.jpeg"
+    if test_img.exists():
+        print(f"Testing pipeline on {test_img}")
+        res = analyze_image(test_img)
+        print("Inspection Status:", res.get("status"))
+        print("Score:", res.get("compliance_score"))
+        print("Passed checks:", res.get("summary", {}).get("passed"))
