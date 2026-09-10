@@ -432,7 +432,7 @@ def _normalise(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "").strip().lower())
 
 
-def _find_reference(name: str, ins_number: Any = None) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+def _find_reference(name: Any = None, ins_number: Any = None) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     normalised_name = _normalise(name)
     normalised_ins = _normalise(ins_number)
 
@@ -485,7 +485,8 @@ def _find_reference(name: str, ins_number: Any = None) -> Tuple[Optional[str], O
             desc = f"Permitted functional food additive (INS {candidate_ins})."
 
         display_name = f"{functional_class} (INS {candidate_ins})"
-        return f"ins_{cleaned_digits}", {
+        return display_name, {
+            "name": display_name,
             "aliases": [candidate_ins, f"ins {candidate_ins}"],
             "ins": candidate_ins,
             "limit_mg_per_kg": None,
@@ -546,13 +547,27 @@ def analyze_preservatives(product: dict) -> dict:
         elif declared_amount is None or not category:
             status = "REVIEW_REQUIRED"
             reason = "A category-specific FSSAI limit or declared quantity is unavailable; verify manually."
+        elif limit is None:
+            status = "REVIEW_REQUIRED"
+            reason = "A category-specific FSSAI permissible limit is not established; verify manually."
         else:
             status = "WITHIN_LIMIT"
             reason = f"Declared amount ({declared_amount:g} mg/kg) is within the FSSAI reference limit of {limit:g} mg/kg."
 
+        display_title = (
+            canonical_name.title()
+            if canonical_name
+            else (str(raw_name).title() if raw_name else "Unidentified Additive")
+        )
+        canonical_str = (
+            canonical_name.lower()
+            if canonical_name
+            else (str(raw_name).lower() if raw_name else "unidentified")
+        )
+
         findings.append({
-            "name": canonical_name.title() if canonical_name else str(raw_name).title(),
-            "canonical_name": canonical_name or str(raw_name).lower(),
+            "name": display_title,
+            "canonical_name": canonical_str,
             "ins_number": ins,
             "amount_mg_per_kg": declared_amount,
             "fssai_limit_mg_per_kg": limit,
@@ -579,8 +594,10 @@ def analyze_preservatives(product: dict) -> dict:
             f"PROHIBITED SUBSTANCE: '{b['name']}' (INS {b['ins_number'] or 'N/A'}) is BANNED in India by FSSAI! Banned globally in: {countries_str}."
         )
     for e in exceeded:
+        amt_str = f"{e['amount_mg_per_kg']:g} mg/kg" if e.get("amount_mg_per_kg") is not None else "Unknown"
+        lim_str = f"{e['fssai_limit_mg_per_kg']:g} mg/kg" if e.get("fssai_limit_mg_per_kg") is not None else "0 mg/kg"
         critical_alerts.append(
-            f"FSSAI VIOLATION: '{e['name']}' exceeds permissible limit ({e['amount_mg_per_kg']} mg/kg > {e['fssai_limit_mg_per_kg']} mg/kg)!"
+            f"FSSAI VIOLATION: '{e['name']}' exceeds permissible limit ({amt_str} > {lim_str})!"
         )
 
     critical_alert_text = " | ".join(critical_alerts) if critical_alerts else None
