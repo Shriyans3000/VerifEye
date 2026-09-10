@@ -15,7 +15,7 @@ export const ProcessingState: React.FC = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentStage((prev) => (prev < stages.length - 1 ? prev + 1 : prev));
-    }, 4000);
+    }, 7500);
     return () => clearInterval(timer);
   }, [stages.length]);
 
@@ -28,8 +28,11 @@ export const ProcessingState: React.FC = () => {
       <h3 className="text-lg font-bold text-slate-900 mb-1">
         Automated Inspection in Progress
       </h3>
-      <p className="text-xs text-slate-500 mb-6 max-w-md mx-auto">
+      <p className="text-xs text-slate-500 mb-2 max-w-md mx-auto">
         VerifEye AI is evaluating the label image against the Legal Metrology (Packaged Commodities) Rules, 2011.
+      </p>
+      <p className="text-[11px] text-amber-600 font-medium mb-6">
+        High-precision PaddleOCR &amp; AI extraction typically takes 20–40 seconds.
       </p>
 
       {/* Progress Stages Bar */}

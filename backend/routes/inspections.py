@@ -7,7 +7,7 @@ logger = logging.getLogger("verifeye.api.inspections")
 router = APIRouter()
 
 
-@router.get("/api/inspections")
+@router.get("/inspections")
 async def get_all_inspections(
     limit: int = Query(20, ge=1, le=100),
     skip: int = Query(0, ge=0)
@@ -26,7 +26,7 @@ async def get_all_inspections(
         )
 
 
-@router.get("/api/inspections/{inspection_id}")
+@router.get("/inspections/{inspection_id}")
 async def get_single_inspection(inspection_id: str):
     """
     Retrieve details for a single completed inspection record by inspection_id.

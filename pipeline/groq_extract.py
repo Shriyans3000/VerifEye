@@ -1,150 +1,25 @@
+import copy
+import hashlib
 import json
 import os
-import time
+
 from pathlib import Path
-import httpx
-from dotenv import load_dotenv
-from groq import Groq
 
-# Load environment variables
-load_dotenv()
-
+import httpx  # pyrefly: ignore [missing-import] # type: ignore
+from dotenv import load_dotenv  # pyrefly: ignore [missing-import] # type: ignore
+from groq import Groq  # pyrefly: ignore [missing-import] # type: ignore
 
 from pipeline.canonical_normalize import canonical_normalize_product
 
+load_dotenv()
+
+_EXTRACTION_CACHE: dict[str, dict] = {}
+
 SYSTEM_PROMPT = """
-You are an information extraction engine for VerifEye,
-a system that analyzes Indian packaged commodity labels.
+You are an information extraction engine for VerifEye, a system that analyzes Indian packaged commodity labels.
+Extract only information supported by the supplied PaddleOCR evidence.
 
-Extract mandatory declarations strictly according to the Legal
-Metrology (Packaged Commodities) Rules, 2011, and the instructions below.
-
-FIELD EXTRACTION RULES:
-
-1. PRODUCT NAME:
-   Extract common/generic name of the commodity.
-   Ignore brand names.
-
-2. MANUFACTURER:
-   Extract full manufacturer, packer, or importer name.
-   Prioritize primary declared entity (e.g. "MANUFACTURED FOR: ...") over contract manufacturing plants.
-
-3. MANUFACTURER ADDRESS:
-   Extract address of manufacturer/packer/importer associated with the primary declaration.
-
-4. COUNTRY OF ORIGIN:
-   Extract country of origin if declared (mandatory for imported items).
-
-5. MRP:
-   Extract Maximum Retail Price as a numeric string (e.g. "30.00").
-   Do not include currency symbols. Do not include unit sale price.
-
-6. NET QUANTITY:
-   Extract net quantity with unit (e.g. 100 g, 187.5 g, 1 L, 5 N).
-   If header "NET WEIGHT:" is in one region and value "187.5 g" is in an adjacent region, extract "187.5 g".
-
-7. UNIT SALE PRICE:
-   Extract Unit Sale Price (USP) if declared (e.g. ₹0.16/g or 0.16/g or Rs. 0.50 per g).
-   If MRP and USP appear together (e.g. "MRP ₹30.00 (₹0.16/g)"), extract both into their respective fields.
-
-8. PACKED DATE:
-   Extract date of packing (PKD / PACKED ON).
-
-9. MANUFACTURING DATE:
-   Extract manufacturing date (MFG / MFG DATE).
-
-10. EXPIRY DATE:
-    Extract expiry date (EXP / EXP DATE).
-
-11. USE BY DATE:
-    Extract use-by date (USE BY). If "USE BY:" header is above date, associate the date below it.
-
-12. BEST BEFORE:
-    Extract best-before declaration (BEST BEFORE).
-
-13. BATCH NUMBER:
-    Extract batch/lot number (BATCH NO / LOT NO / BATCH).
-    NEVER extract declaration keywords like "PKD", "PACKED", "USE BY", "EXP", "MFG", "DATE" as the batch number.
-    If "BATCH:" header is above or next to code like "K9C", extract that code.
-
-14. CONSUMER CARE:
-    Extract contact details: phone and email.
-
-15. TAX INCLUSIVE MRP:
-    Return true if MRP explicitly includes all taxes, false if excluded, null if unclear.
-
-16. FSSAI NUMBER:
-    Extract FSSAI license number if declared.
-
-17. DIMENSIONS:
-    Extract net dimensions if declared.
-
-18. EVIDENCE REQUIREMENT:
-    For every extracted field, provide an evidence object containing:
-    - ocr_id: ID of supporting OCR region
-    - image_index: image index (0 or 1) of supporting OCR region
-    - text: exact supporting OCR text
-    - confidence: confidence score
-    - bbox: bounding box
-
-19. DATE EXTRACTION:
-    Dates MUST be associated with their explicit declaration label.
-    Recognize these declaration labels:
-    - "PKD", "PKD.", "PACKED", "PACKED ON", "PACKING DATE", "DATE OF PACKING" -> packed_date
-    - "MFG", "MFG.", "MANUFACTURED", "MANUFACTURING DATE", "DATE OF MANUFACTURE" -> manufacturing_date
-    - "EXP", "EXP.", "EXPIRY", "EXPIRY DATE", "DATE OF EXPIRY" -> expiry_date
-    - "USE BY", "USE-BY", "USE BEFORE" -> use_by_date
-    - "BEST BEFORE", "BEST-BEFORE", "BBE" -> best_before
-
-20. IMPORTANT DATE RULE:
-    NEVER convert one type of date into another.
-    If OCR says "PKD.: 29/7/20", then packed_date = "29/7/20", manufacturing_date = null, expiry_date = null, use_by_date = null, best_before = null.
-
-21. If OCR says "MFG: 29/07/26", then manufacturing_date = "29/07/26".
-
-22. If OCR says "EXP: 29/07/27", then expiry_date = "29/07/27".
-
-23. If OCR says "USE BY: 29/07/27", then use_by_date = "29/07/27".
-
-24. If OCR says "BEST BEFORE: 6 MONTHS FROM PACKING", then best_before = "6 MONTHS FROM PACKING".
-
-25. If multiple dates occur in one OCR region, associate each date with its nearest explicit declaration label.
-
-26. If a date appears without a reliable declaration label, DO NOT assign it to packed_date, manufacturing_date, expiry_date, use_by_date, or best_before.
-
-27. Do not calculate dates.
-
-28. Do not normalize dates into another format. Preserve exact text.
-
-29. BATCH NUMBER WITH MERGED OCR:
-    Always prefer the OCR region containing the actual identifier as evidence for batch_number.
-
-30. Do not mistake explanatory text for declarations.
-
-31. FSSAI NUMBER: Extract fssai_number ONLY when OCR explicitly associates the number with "FSSAI", "FSSAI No", "FSSAI LIC.", etc.
-
-32. MANUFACTURER ADDRESS: Extract actual manufacturer/packer/importer address only when OCR evidence identifies it as such.
-
-33. CONSUMER CARE: Extract phone and email only when actually present in OCR evidence.
-
-34. TAX-INCLUSIVE MRP: Set tax_inclusive_mrp to true ONLY when OCR explicitly states "INCL. OF ALL TAXES" or equivalent.
-
-35. DIMENSIONS: Extract dimensions ONLY when explicitly declared in OCR.
-
-36. For every evidence object use EXACTLY this structure:
-{
-  "ocr_id": 0,
-  "image_index": 0,
-  "text": "exact supporting OCR text",
-  "confidence": 0.995,
-  "bbox": [x1, y1, x2, y2]
-}
-
-37. The "text" inside an evidence object MUST be exact OCR text.
-38. Never fabricate OCR IDs, confidence values, bounding boxes, or OCR text.
-39. If OCR evidence does not support a field, return null for both field and evidence.
-40. Return ONLY valid JSON object matching this schema:
-
+Return ONLY valid JSON matching this schema:
 {
   "product_name": null,
   "manufacturer": null,
@@ -159,14 +34,13 @@ FIELD EXTRACTION RULES:
   "use_by_date": null,
   "best_before": null,
   "batch_number": null,
-  "consumer_care": {
-    "phone": null,
-    "email": null
-  },
+  "consumer_care": {"phone": null, "email": null},
   "tax_inclusive_mrp": null,
   "fssai_number": null,
   "dimensions": null,
-
+  "food_category": null,
+  "ingredients": null,
+  "preservatives": [],
   "evidence": {
     "product_name": null,
     "manufacturer": null,
@@ -185,9 +59,33 @@ FIELD EXTRACTION RULES:
     "consumer_care_email": null,
     "tax_inclusive_mrp": null,
     "fssai_number": null,
-    "dimensions": null
+    "dimensions": null,
+    "food_category": null,
+    "ingredients": null
   }
 }
+
+Rules:
+1. Every evidence object must contain ocr_id, image_index, exact OCR text, confidence, and bbox.
+2. Never fabricate OCR IDs, confidence values, bounding boxes, or OCR text.
+3. Extract ingredients exactly as supported by OCR. Do not complete or infer the list.
+4. Identify preservatives only when explicitly present in the ingredients/additive declaration.
+5. Each preservative must be an object with name, ins_number, amount_mg_per_kg, and evidence.
+6. Set amount_mg_per_kg only when the amount is explicitly printed; otherwise use null.
+7. Extract food_category only when supported by the label; otherwise use null.
+8. Product name means the common/generic commodity name, not the brand name.
+9. Manufacturer means the full manufacturer, packer, or importer name and address.
+10. FSSAI number must be explicitly associated with FSSAI, FSSAI No, or FSSAI LIC.
+11. Consumer-care phone and email must be actually present in OCR evidence.
+12. Tax-inclusive MRP is true only for explicit wording such as INCL. OF ALL TAXES; otherwise use null.
+13. Dimensions must be explicitly declared; never infer them.
+14. Dates must retain their exact text and their explicit label. Recognize PKD/PACKED as packed_date,
+MFG/MANUFACTURED as manufacturing_date, EXP/EXPIRY as expiry_date, USE BY as use_by_date,
+and BEST BEFORE/BBE as best_before.
+15. Never convert one type of date into another. An unlabeled date must not be assigned to any date field.
+16. Do not calculate dates or normalize their format.
+17. If OCR does not support a field, return null for that field and its evidence.
+18. For every non-null field extracted, you MUST include its supporting evidence object in the evidence dictionary (with ocr_id, image_index, text, confidence, bbox).
 """
 
 
@@ -198,97 +96,239 @@ def extract_structured_product(
 ) -> dict:
     if not api_key:
         api_key = os.getenv("GROQ_API_KEY")
-
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not set.")
 
     ocr_evidence = []
     for index, item in enumerate(ocr_data):
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+        item_id = item.get("id")
+        if item_id is None:
+            item_id = index
+        conf = item.get("confidence")
+        if conf is not None:
+            try:
+                conf = round(float(conf), 2)
+            except (ValueError, TypeError):
+                conf = 0.0
+        bbox = item.get("bbox")
+        if bbox and isinstance(bbox, list):
+            try:
+                bbox = [round(float(b), 1) for b in bbox]
+            except (ValueError, TypeError):
+                pass
+
         ocr_evidence.append({
-            "id": index,
+            "id": item_id,
             "image_index": item.get("image_index", 0),
-            "text": item.get("text", ""),
-            "confidence": item.get("confidence"),
-            "bbox": item.get("bbox")
+            "text": text,
+            "confidence": conf,
+            "bbox": bbox
         })
 
-    user_prompt = f"""
-Extract the product information from the following PaddleOCR evidence.
+    compact_evidence = json.dumps(ocr_evidence, separators=(',', ':'), ensure_ascii=False)
+    compact_hints = json.dumps(normalized_data.get("associations", {}), separators=(',', ':'), ensure_ascii=False)
 
-Each OCR region has an ID and image_index (0 for Image 1 / Front, 1 for Image 2 / Back). Use those IDs and image_indices when creating evidence objects.
+    cache_key = hashlib.sha256(f"{compact_evidence}::{compact_hints}".encode("utf-8")).hexdigest()
+    if cache_key in _EXTRACTION_CACHE:
+        return copy.deepcopy(_EXTRACTION_CACHE[cache_key])
+
+    user_prompt = f"""Extract product information from this PaddleOCR evidence. Use numeric IDs and image_index values exactly.
 
 OCR EVIDENCE:
+{compact_evidence}
 
-{json.dumps(ocr_evidence, indent=2, ensure_ascii=False)}
+NORMALIZATION HINTS:
+{compact_hints}"""
 
-NORMALIZATION HINTS (use only as deterministic OCR-location hints; never invent values):
-{json.dumps(normalized_data.get("associations", {}), indent=2, ensure_ascii=False)}
-"""
-
+    # Active Groq models as of 2026 — prioritize models with available token quota
     models_to_try = [
-        "groq/compound",
-        "groq/compound-mini"
+        "qwen/qwen3.8-27b",           # Active, high-accuracy 27B model (separate quota)
+        "groq/compound-mini",          # Fast compound fallback
+        "qwen/qwen3.6-27b",           # Fast fallback
+        "openai/gpt-oss-120b",        # Best quality 120B reasoning model (when daily TPD quota available)
+        "openai/gpt-oss-20b",         # Fast reasoning fallback (when daily TPD quota available)
     ]
+
+    # Create client once outside the loop
+    client = Groq(
+        api_key=api_key,
+        timeout=httpx.Timeout(60.0, connect=30.0),
+        max_retries=0,  # We handle retries manually via model fallback
+    )
+
     response = None
     last_err = None
     for model_name in models_to_try:
-        for attempt in range(2):
+        call_kwargs = {
+            "model": model_name,
+            "temperature": 0.0,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ]
+        }
+        if "gpt-oss" in model_name:
+            call_kwargs["extra_body"] = {"reasoning_effort": "low"}
+            call_kwargs["response_format"] = {"type": "json_object"}
+        elif "compound" in model_name:
+            call_kwargs["response_format"] = {"type": "json_object"}
+            call_kwargs["max_tokens"] = 700
+        else:
+            call_kwargs["max_tokens"] = 950
+
+        for attempt in range(4):
             try:
-                client = Groq(
-                    api_key=api_key,
-                    timeout=httpx.Timeout(30.0, connect=15.0),
-                    max_retries=1,
-                )
-                response = client.chat.completions.create(
-                    model=model_name,
-                    temperature=0.0,
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                )
+                response = client.chat.completions.create(**call_kwargs)
                 if response and response.choices and response.choices[0].message.content:
+                    raw_text = response.choices[0].message.content.strip()
+                    # Strip reasoning tags if present
+                    if "</think>" in raw_text:
+                        raw_text = raw_text.split("</think>", 1)[1].strip()
+                    # Strip markdown wrapping if present
+                    if "```json" in raw_text:
+                        raw_text = raw_text.split("```json", 1)[1].split("```", 1)[0].strip()
+                    elif raw_text.startswith("```"):
+                        raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                    try:
+                        structured_data = json.loads(raw_text)
+                    except json.JSONDecodeError:
+                        import re as _re
+                        cleaned = _re.sub(r',\s*([\]}])', r'\1', raw_text)
+                        try:
+                            structured_data = json.loads(cleaned)
+                        except json.JSONDecodeError:
+                            json_match = _re.search(r'(\{[\s\S]*\})', cleaned)
+                            parsed_candidate = None
+                            if json_match:
+                                try:
+                                    parsed_candidate = json.loads(json_match.group(1))
+                                except Exception:
+                                    pass
+                            if parsed_candidate is not None:
+                                structured_data = parsed_candidate
+                            else:
+                                # Resilient repair for truncated JSON
+                                repaired = cleaned.strip()
+                                if repaired.count('"') % 2 != 0:
+                                    repaired += '"'
+                                repaired = _re.sub(r',\s*$', '', repaired)
+                                open_brackets = repaired.count('[') - repaired.count(']')
+                                open_braces = repaired.count('{') - repaired.count('}')
+                                repaired += (']' * max(0, open_brackets)) + ('}' * max(0, open_braces))
+                                structured_data = json.loads(repaired)
+
+                    result = canonical_normalize_product(structured_data, ocr_data)
+                    _EXTRACTION_CACHE[cache_key] = copy.deepcopy(result)
+                    return result
+            except Exception as error:
+                error_str = str(error)
+                if "json_validate_failed" in error_str and "response_format" in call_kwargs:
+                    call_kwargs.pop("response_format", None)
+                    continue
+                if "model_decommissioned" in error_str or "decommissioned" in error_str:
+                    import logging as _log
+                    _log.getLogger("verifeye.groq").warning(
+                        f"Model '{model_name}' is decommissioned, skipping to next fallback."
+                    )
                     break
-            except Exception as e:
-                last_err = e
-                time.sleep(1.0 * (attempt + 1))
-        if response:
-            break
+                if "rate_limit" in error_str.lower() or "429" in error_str:
+                    import re as _re
+                    # Daily token quota exhausted (TPD):
+                    # Do not sleep and retry the same model; immediately advance to the next fallback model.
+                    if "tokens per day" in error_str.lower() or "tpd" in error_str.lower():
+                        import logging as _log
+                        _log.getLogger("verifeye.groq").warning(
+                            f"Model '{model_name}' daily token limit (TPD) reached, advancing to next fallback."
+                        )
+                        last_err = error
+                        break
 
-    if not response:
-        print(f"Warning: Groq LLM extraction unavailable ({last_err}). Falling back to deterministic OCR normalization.")
-        structured_data = {}
-    else:
-        try:
-            result_text = response.choices[0].message.content
-            structured_data = json.loads(result_text)
-        except Exception:
-            structured_data = {}
+                    # Reduce max tokens if requested by Groq OTPM
+                    if ("reduce max_tokens" in error_str.lower() or "otpm" in error_str.lower()) and "max_tokens" in call_kwargs:
+                        call_kwargs["max_tokens"] = 450
 
-    # Run deterministic canonical normalization
-    canonical_data = canonical_normalize_product(structured_data, ocr_data)
-    return canonical_data
+                    if attempt < 2:
+                        import time as _time
+                        wait_sec = 2.0
+                        match = _re.search(r"try again in ([\d\.]+)s", error_str)
+                        if match:
+                            parsed_wait = float(match.group(1))
+                            if parsed_wait > 8.0:
+                                last_err = error
+                                break
+                            wait_sec = min(parsed_wait + 0.5, 6.0)
+                        else:
+                            m_match = _re.search(r"try again in (\d+)m([\d\.]+)s", error_str)
+                            if m_match:
+                                last_err = error
+                                break
+                        _time.sleep(wait_sec)
+                        continue
+                    last_err = error
+                    break
+
+    import logging as _log
+    _log.getLogger("verifeye.groq").warning(
+        f"Groq inference unavailable ({last_err}); using deterministic normalized OCR extraction."
+    )
+    if isinstance(normalized_data, dict):
+        fallback_data = {
+            "product_name": normalized_data.get("product_name"),
+            "manufacturer": normalized_data.get("manufacturer"),
+            "manufacturer_address": normalized_data.get("manufacturer_address"),
+            "country_of_origin": normalized_data.get("country_of_origin") or "India",
+            "mrp": normalized_data.get("mrp"),
+            "net_quantity": normalized_data.get("net_quantity"),
+            "unit_sale_price": normalized_data.get("unit_sale_price"),
+            "packed_date": normalized_data.get("date_packed"),
+            "manufacturing_date": normalized_data.get("date_mfg"),
+            "expiry_date": normalized_data.get("date_expiry"),
+            "use_by_date": normalized_data.get("date_use_by"),
+            "best_before": normalized_data.get("date_best_before"),
+            "batch_number": normalized_data.get("batch_number"),
+            "consumer_care": {
+                "phone": normalized_data.get("phone"),
+                "email": normalized_data.get("email"),
+            },
+            "tax_inclusive_mrp": bool(normalized_data.get("tax_inclusive")),
+            "fssai_number": normalized_data.get("fssai_number"),
+            "ingredients": normalized_data.get("ingredients"),
+            "preservatives": [],
+            "evidence": {}
+        }
+        if not fallback_data["ingredients"] and ocr_data:
+            for item in ocr_data:
+                t = str(item.get("text", ""))
+                if "ingredient" in t.lower():
+                    fallback_data["ingredients"] = t
+                    break
+        result = canonical_normalize_product(fallback_data, ocr_data)
+        _EXTRACTION_CACHE[cache_key] = copy.deepcopy(result)
+        return result
+
+    raise last_err or RuntimeError("All Groq models failed to produce a response.")
 
 
 def main():
-    with open("ocr_result.json", "r", encoding="utf-8") as f:
-        ocr_data = json.load(f)
+    base = Path(__file__).resolve().parent.parent
+    ocr_file = Path("ocr_result.json") if Path("ocr_result.json").exists() else base / "ocr_result.json"
+    norm_file = Path("normalized_ocr.json") if Path("normalized_ocr.json").exists() else base / "normalized_ocr.json"
+    out_file = Path("structured_product.json") if Path("structured_product.json").exists() else base / "structured_product.json"
 
+    with open(ocr_file, "r", encoding="utf-8") as file:
+        ocr_data = json.load(file)
     try:
-        with open("normalized_ocr.json", "r", encoding="utf-8") as f:
-            normalized_data = json.load(f)
+        with open(norm_file, "r", encoding="utf-8") as file:
+            normalized_data = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         normalized_data = {}
 
-    print("Sending OCR evidence to Groq...")
     structured_data = extract_structured_product(ocr_data, normalized_data)
-
-    output_file = "structured_product.json"
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(structured_data, f, indent=2, ensure_ascii=False)
-
-    print(f"\nSaved to: {output_file}")
+    with open(out_file, "w", encoding="utf-8") as file:
+        json.dump(structured_data, file, indent=2, ensure_ascii=False)
 
 
 if __name__ == "__main__":

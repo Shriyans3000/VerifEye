@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # pyrefly: ignore [missing-import] # type: ignore
 
 # Load .env file from project root or parent
 env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -8,7 +8,7 @@ load_dotenv(dotenv_path=env_path)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-_cors_env = os.getenv("CORS_ORIGINS", "http://localhost:5174,http://localhost:3000,http://127.0.0.1:5174")
+_cors_env = os.getenv("CORS_ORIGINS", "http://localhost:5174,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5174,http://127.0.0.1:5173")
 CORS_ORIGINS = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
 
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))

@@ -32,7 +32,7 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
 
   if (!isOpen) return null;
 
-  const { status, compliance_score, summary, product, checks = [], validation_checks = [], meta } = data;
+  const { status, compliance_score, summary, product, checks = [], validation_checks = [], preservative_analysis, meta } = data;
 
   const imageSrc = imageFile ? URL.createObjectURL(imageFile) : null;
 
@@ -115,82 +115,6 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
   const uniqueEvidence = Array.from(
     new Map(allEvidence.map((e) => [e.ocr_id, e])).values()
   );
-
-  // Quantity handling: preserve original declaration and derived calculated total
-  const rawNetQty = product?.net_quantity;
-  let declaredQty = product?.declared_quantity || rawNetQty;
-  let calculatedTotal = product?.calculated_total_quantity || null;
-
-  if (!calculatedTotal && rawNetQty && rawNetQty.includes('(') && rawNetQty.includes(')')) {
-    const match = rawNetQty.match(/^([^(]+)\s*\(([^)]+)\)/);
-    if (match) {
-      calculatedTotal = match[1].trim();
-      declaredQty = match[2].trim();
-    }
-  } else if (!calculatedTotal && rawNetQty && rawNetQty.includes('+')) {
-    declaredQty = rawNetQty;
-    const cleanQty = rawNetQty.replace(/([0-9]+(?:\.[0-9]+)?)\s*q\b/gi, '$1g');
-    const parts = cleanQty.match(/([0-9]+(?:\.[0-9]+)?)\s*(kg|g|mg|l|ml|cm|m)/gi);
-    if (parts && parts.length > 1) {
-      let sum = 0;
-      let unit = '';
-      parts.forEach((p) => {
-        const m = p.match(/([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]+)/);
-        if (m) {
-          sum += parseFloat(m[1]);
-          unit = m[2];
-        }
-      });
-      if (sum > 0) {
-        calculatedTotal = `${sum}${unit}`;
-      }
-    }
-  }
-
-  // Date handling: preserve distinct packed vs mfg vs expiry vs best-before vs use-by
-  const dateCheck = checks.find(
-    (c) =>
-      c.rule_name === 'Manufacture / Pack Date' ||
-      c.field === 'packed_date' ||
-      c.field === 'manufacturing_date'
-  );
-
-  const rawPacked =
-    product?.packed_date ||
-    (product as any)?.date_of_packing ||
-    (product as any)?.pkd_date;
-
-  const rawMfg =
-    product?.manufacturing_date ||
-    (product as any)?.date_of_manufacture ||
-    (product as any)?.mfg_date;
-
-  const packedDate =
-    rawPacked ||
-    (!rawMfg && dateCheck?.rule_name === 'Manufacture / Pack Date' && dateCheck?.extracted_value
-      ? String(dateCheck.extracted_value)
-      : null);
-
-  const mfgDate = rawMfg;
-
-  const expiryDate = product?.expiry_date || (product as any)?.date_of_expiry;
-  const bestBefore = product?.best_before;
-  const useByDate = product?.use_by_date;
-
-  const formatDisplayDate = (dStr: string | null | undefined): string | null => {
-    if (!dStr) return null;
-    const s = String(dStr).trim();
-    if (s === '2920') return '29/07/2020';
-    const m = s.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{2,4})$/);
-    if (m) {
-      const day = m[1].padStart(2, '0');
-      const mon = m[2].padStart(2, '0');
-      let yr = m[3];
-      if (yr.length === 2) yr = `20${yr}`;
-      return `${day}/${mon}/${yr}`;
-    }
-    return s;
-  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible">
@@ -393,10 +317,7 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Net Quantity</span>
-                  <span className="font-semibold text-slate-900">
-                    {formatValue(declaredQty)}
-                    {calculatedTotal && ` (Calculated: ${calculatedTotal})`}
-                  </span>
+                  <span className="font-semibold text-slate-900">{formatValue(product?.net_quantity)}</span>
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Unit Sale Price (USP)</span>
@@ -405,27 +326,13 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Mfg / Packing Date</span>
                   <span className="font-semibold text-slate-900">
-                    {packedDate && mfgDate
-                      ? `Packed: ${formatDisplayDate(packedDate)} | Mfg: ${formatDisplayDate(mfgDate)}`
-                      : packedDate
-                      ? `Packed: ${formatDisplayDate(packedDate)}`
-                      : mfgDate
-                      ? `Mfg: ${formatDisplayDate(mfgDate)}`
-                      : 'Not declared'}
+                    {formatValue(product?.packed_date || product?.manufacturing_date)}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Best Before / Expiry</span>
                   <span className="font-semibold text-slate-900">
-                    {bestBefore && expiryDate
-                      ? `BB: ${formatDisplayDate(bestBefore)} | Exp: ${formatDisplayDate(expiryDate)}`
-                      : bestBefore
-                      ? `Best Before: ${formatDisplayDate(bestBefore)}`
-                      : expiryDate
-                      ? `Expiry: ${formatDisplayDate(expiryDate)}`
-                      : useByDate
-                      ? `Use By: ${formatDisplayDate(useByDate)}`
-                      : 'Not declared'}
+                    {formatValue(product?.best_before || product?.use_by_date || product?.expiry_date)}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
@@ -439,6 +346,12 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                 <div className="bg-slate-50 p-1.5 rounded border border-slate-200">
                   <span className="text-slate-500 text-[9px] block">Country of Origin</span>
                   <span className="font-semibold text-slate-900">{formatValue(product?.country_of_origin)}</span>
+                </div>
+                <div className="bg-slate-50 p-1.5 rounded border border-slate-200 col-span-3">
+                  <span className="text-slate-500 text-[9px] block">Ingredients Declaration</span>
+                  <span className="font-semibold text-slate-900 block text-[9.5px] leading-tight">
+                    {formatValue(product?.ingredients)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -469,11 +382,7 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                         </td>
                         <td className="py-1 px-2 text-center">{getCheckBadge(check.status)}</td>
                         <td className="py-1 px-2.5 text-slate-800 truncate max-w-[140px]">
-                          {(check.rule_name === 'Net Quantity' || check.field === 'net_quantity') && calculatedTotal
-                            ? `${declaredQty} (Total: ${calculatedTotal})`
-                            : (check.rule_name === 'Manufacture / Pack Date' || check.field === 'packed_date' || check.field === 'manufacturing_date')
-                            ? (formatDisplayDate(String(check.extracted_value)) || formatValue(check.extracted_value))
-                            : formatValue(check.extracted_value)}
+                          {formatValue(check.extracted_value)}
                         </td>
                         <td className="py-1 px-2.5 text-slate-600 text-[9.5px] leading-tight">
                           {check.reason}
@@ -528,6 +437,114 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Section 4B: Preservative Safety & Chemical Additive Audit (FSSAI) */}
+            <div className="print-avoid-break">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Preservative Safety & Chemical Additives Audit (FSSAI)</span>
+                </span>
+                <span className="text-[9px] text-slate-500 font-mono">
+                  {preservative_analysis?.food_category || product?.food_category || 'General Packaged Food'}
+                </span>
+              </h2>
+
+              {preservative_analysis?.has_banned_preservative && (
+                <div className="bg-rose-50 border border-rose-400 p-2 rounded mb-2 text-[9.5px] text-rose-950">
+                  <span className="font-bold text-rose-900 uppercase block">
+                    ⚠️ Statutory Warning: Prohibited / Banned Food Substance Detected
+                  </span>
+                  <p className="mt-0.5">
+                    {preservative_analysis.critical_alert || 'A prohibited chemical preservative or industrial adulterant was identified in this product.'}
+                  </p>
+                </div>
+              )}
+
+              {preservative_analysis?.preservatives_found && preservative_analysis.preservatives_found.length > 0 ? (
+                <div className="border border-slate-300 rounded overflow-hidden">
+                  <table className="w-full text-left text-[9.5px] border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 font-bold uppercase">
+                        <th className="py-1 px-2 w-32">Preservative</th>
+                        <th className="py-1 px-2 text-center w-16">Status</th>
+                        <th className="py-1 px-2 w-28">Declared vs FSSAI Limit</th>
+                        <th className="py-1 px-2">Global Bans & Country-wise Prohibitions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {preservative_analysis.preservatives_found.map((item, idx) => {
+                        const isBanned = item.is_banned_in_india || item.status === 'BANNED_SUBSTANCE';
+                        return (
+                          <tr key={idx} className={`hover:bg-slate-50 ${isBanned ? 'bg-rose-50/70 font-semibold' : ''}`}>
+                            <td className="py-1.5 px-2 align-top">
+                              <span className="font-bold text-slate-900 block">{item.name || 'Additive'}</span>
+                              <span className="font-mono text-slate-500 text-[8.5px] block">
+                                {item.ins_number ? `INS ${item.ins_number}` : 'No INS #'}
+                              </span>
+                              <span className="text-[8.5px] text-slate-600 block mt-0.5 leading-snug">
+                                <strong className="text-slate-700">Brief Purpose:</strong> {item.description || item.reason}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-2 text-center align-top">
+                              {isBanned ? (
+                                <span className="font-black text-rose-700 bg-rose-100 px-1 py-0.5 rounded text-[8px] uppercase block border border-rose-300">
+                                  BANNED
+                                </span>
+                              ) : (
+                                getCheckBadge(item.status === 'LIMIT_EXCEEDED' ? 'FAIL' : item.risk_flag ? 'REVIEW' : 'PASS')
+                              )}
+                            </td>
+                            <td className="py-1.5 px-2 align-top font-mono text-[9px]">
+                              <span className="text-slate-500 text-[8px] uppercase block">Declared:</span>
+                              <span className="font-bold text-slate-800 block">
+                                {item.amount_mg_per_kg == null ? 'Not specified' : `${item.amount_mg_per_kg} mg/kg`}
+                              </span>
+                              <span className="text-slate-500 text-[8px] uppercase block mt-1">FSSAI Limit:</span>
+                              <span className={`font-bold block ${isBanned ? 'text-rose-700' : 'text-slate-800'}`}>
+                                {isBanned ? '0 mg/kg (Prohibited)' : item.fssai_limit_mg_per_kg == null ? 'Schedule unlisted' : `${item.fssai_limit_mg_per_kg} mg/kg`}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-2 align-top text-[8.5px]">
+                              {item.banned_countries && item.banned_countries.length > 0 ? (
+                                <div className="space-y-1">
+                                  <span className="font-bold text-rose-900 block">Banned/Restricted in:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.banned_countries.map((c, cIdx) => (
+                                      <span key={cIdx} className="bg-rose-100 text-rose-900 border border-rose-200 rounded px-1.5 py-0.5 text-[8px]">
+                                        {c}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  {item.health_concerns && (
+                                    <p className="text-slate-600 italic mt-1 leading-tight text-[8px]">
+                                      Note: {item.health_concerns}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-slate-500">Permitted in primary international food codes within quantitative limits.</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="border border-emerald-300 bg-emerald-50/70 p-2 rounded flex items-center justify-between text-[9.5px]">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0" />
+                    <span className="font-bold text-emerald-900">Clean Label Verified:</span>
+                    <span className="text-slate-700">No synthetic chemical preservatives (Class II additives) or banned substances detected.</span>
+                  </div>
+                  <span className="font-bold uppercase text-[8.5px] px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900 flex-shrink-0">
+                    PASS / SAFE
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Section 5: Visual Evidence & OCR Mappings */}

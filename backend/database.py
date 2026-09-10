@@ -1,34 +1,52 @@
 import logging
 import uuid
 from datetime import datetime
-from pymongo import MongoClient, errors
+from pymongo import MongoClient, errors  # pyrefly: ignore [missing-import] # type: ignore
 from backend.config import MONGODB_URI, MONGODB_DB_NAME
 
 logger = logging.getLogger("verifeye.database")
 
+try:
+    import certifi  # pyrefly: ignore [missing-import] # type: ignore
+    _CA_FILE = certifi.where()
+except Exception:
+    _CA_FILE = None
+
 _client = None
+_db_available = True
 _in_memory_db: dict[str, dict] = {}
 
 
 def get_db_client():
-    global _client
-    if not MONGODB_URI:
+    global _client, _db_available
+    if not MONGODB_URI or not _db_available:
         return None
 
     if _client is None:
+        candidate_client = None
         try:
-            _client = MongoClient(
-                MONGODB_URI,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=5000
-            )
+            client_kwargs = {
+                "serverSelectionTimeoutMS": 2500,
+                "connectTimeoutMS": 2500,
+            }
+            if _CA_FILE:
+                client_kwargs["tlsCAFile"] = _CA_FILE
+
+            candidate_client = MongoClient(MONGODB_URI, **client_kwargs)
             # Ping to verify connection
-            _client.admin.command('ping')
+            candidate_client.admin.command('ping')
+            _client = candidate_client
             logger.info("Successfully connected to MongoDB Atlas.")
         except Exception as e:
+            if candidate_client is not None:
+                try:
+                    candidate_client.close()
+                except Exception:
+                    pass
             _client = None
-            logger.error(f"Failed to connect to MongoDB Atlas: {e}")
-            raise e
+            _db_available = False
+            logger.warning(f"Could not connect to MongoDB Atlas ({e}). Operating in fast in-memory store mode.")
+            return None
 
     return _client
 
@@ -65,7 +83,6 @@ def save_inspection(analysis_result: dict, filename: str = "") -> dict:
         "product": analysis_result.get("product", {}),
         "checks": analysis_result.get("checks", []),
         "validation_checks": analysis_result.get("validation_checks", []),
-        "readability": analysis_result.get("readability"),
         "meta": analysis_result.get("meta", {}),
         "created_at": datetime.utcnow().isoformat()
     }

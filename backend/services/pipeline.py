@@ -56,9 +56,11 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
     )
 
     # 6. Format Response
+    overall_status = compliance_result.get("overall_status", "REVIEW_REQUIRED")
     return {
         "success": True,
-        "status": compliance_result.get("overall_status", "REVIEW_REQUIRED"),
+        "status": overall_status,
+        "overall_status": overall_status,
         "compliance_score": compliance_result.get("compliance_score", 0.0),
         "summary": {
             "total_checks": compliance_result.get("total_checks", 0),
@@ -69,6 +71,7 @@ def analyze_images(image_paths: list[str | Path]) -> dict:
         "product": structured_product,
         "checks": compliance_result.get("checks", []),
         "validation_checks": compliance_result.get("validation_checks", []),
+        "preservative_analysis": compliance_result.get("preservative_analysis", {}),
         "readability": readability_result,
         "meta": {
             "images_processed": len(resolved_paths),

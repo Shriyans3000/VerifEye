@@ -2,11 +2,11 @@ import axios from 'axios';
 import { AnalyzeResponse, HealthResponse } from '../types/api';
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+  import.meta.env.VITE_API_URL || '/api';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000, // PaddleOCR + LLM can take up to 30-45 seconds
+  timeout: 180000, // PaddleOCR + LLM can take up to 30-60 seconds for large labels
 });
 
 export const checkHealth = async (): Promise<boolean> => {
@@ -32,7 +32,7 @@ export const analyzePackageLabel = async (files: File | File[]): Promise<Analyze
   }
 
   try {
-    const response = await client.post<AnalyzeResponse>('/api/analyze', formData, {
+    const response = await client.post<AnalyzeResponse>('/analyze', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -45,19 +45,26 @@ export const analyzePackageLabel = async (files: File | File[]): Promise<Analyze
     return response.data;
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+        throw new Error('Inspection timed out while processing image. Please try again with a clearer or smaller package photo.');
+      }
+
+      if (error.response?.data?.detail) {
+        throw new Error(error.response.data.detail);
+      }
+
       if (!error.response) {
         throw new Error('Unable to connect to the VerifEye inspection server. Please check that the backend service is available.');
       }
 
       const status = error.response.status;
-      const detail = error.response.data?.detail;
 
       if (status === 400) {
-        throw new Error(detail || 'Invalid image file uploaded. Please select a valid JPG, PNG, or WEBP label image.');
+        throw new Error('Invalid image file uploaded. Please select a valid JPG, PNG, or WEBP label image.');
       } else if (status === 422) {
-        throw new Error(detail || 'The package image could not be processed by OCR. Please upload a clearer photograph.');
+        throw new Error('The package image could not be processed by OCR. Please upload a clearer photograph.');
       } else if (status === 500) {
-        throw new Error(detail || 'Inspection pipeline encountered a processing error. Please retry or contact support.');
+        throw new Error('Inspection pipeline encountered a processing error. Please retry or contact support.');
       }
     }
 
@@ -67,7 +74,7 @@ export const analyzePackageLabel = async (files: File | File[]): Promise<Analyze
 
 export const fetchInspections = async (limit: number = 20, skip: number = 0): Promise<AnalyzeResponse[]> => {
   try {
-    const response = await client.get<AnalyzeResponse[]>('/api/inspections', {
+    const response = await client.get<AnalyzeResponse[]>('/inspections', {
       params: { limit, skip }
     });
     return response.data || [];
@@ -79,7 +86,7 @@ export const fetchInspections = async (limit: number = 20, skip: number = 0): Pr
 
 export const fetchInspectionById = async (id: string): Promise<AnalyzeResponse | null> => {
   try {
-    const response = await client.get<AnalyzeResponse>(`/api/inspections/${id}`);
+    const response = await client.get<AnalyzeResponse>(`/inspections/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Failed to fetch inspection ${id}:`, error);

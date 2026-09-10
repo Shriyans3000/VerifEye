@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI  # pyrefly: ignore [missing-import] # type: ignore
+from fastapi.middleware.cors import CORSMiddleware  # pyrefly: ignore [missing-import] # type: ignore
 
 from backend.config import CORS_ORIGINS
 from backend.routes.health import router as health_router
@@ -21,12 +21,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include route handlers
+@app.on_event("startup")
+def warmup_services():
+    import threading
+    def _warmup():
+        try:
+            from pipeline.ocr_engine import get_ocr_engine
+            get_ocr_engine()
+        except Exception:
+            pass
+    threading.Thread(target=_warmup, daemon=True).start()
+
+# Include route handlers — Vite dev proxy strips /api prefix before forwarding,
+# so the backend only needs to serve the bare paths (e.g. /health, /analyze, /inspections).
+# The /api prefix variants are kept for direct backend access (e.g. curl, Postman, production).
 app.include_router(health_router)
+app.include_router(health_router, prefix="/api")
 app.include_router(analyze_router)
+app.include_router(analyze_router, prefix="/api")
 app.include_router(inspections_router)
+app.include_router(inspections_router, prefix="/api")
 
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn  # pyrefly: ignore [missing-import] # type: ignore
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)

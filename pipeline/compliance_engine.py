@@ -3,6 +3,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from pipeline.preservative_analysis import analyze_preservatives
+
 
 def present(v):
     if v is None or v == "":
@@ -56,62 +58,16 @@ def money(v):
 def date_value(v):
     if not v:
         return None
-    s = str(v).strip()
-    # 1. 3-part numeric date: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY or YYYY/MM/DD
-    m3 = re.search(r"\b(\d{1,2}|20\d{2})[/. -](\d{1,2})[/. -](\d{2,4})\b", s)
-    if m3:
-        p1, p2, p3 = int(m3.group(1)), int(m3.group(2)), int(m3.group(3))
-        if p1 > 1000:
-            y, m_val, d = p1, p2, p3
-        else:
-            d, m_val, y = p1, p2, p3
-            if y < 100:
-                y += 2000
-        if 1 <= m_val <= 12 and 1 <= d <= 31 and 2000 <= y <= 2099:
-            try:
-                return datetime(y, m_val, d)
-            except ValueError:
-                pass
-
-    # 2. 2-part numeric date: MM/YYYY or MM/YY or MM-YYYY or MM.YYYY
-    m2 = re.search(r"\b(\d{1,2})[/. -](\d{2,4})\b", s)
-    if m2:
-        m_val, y = int(m2.group(1)), int(m2.group(2))
-        if y < 100:
-            y += 2000
-        if 1 <= m_val <= 12 and 2000 <= y <= 2099:
-            try:
-                return datetime(y, m_val, 1)
-            except ValueError:
-                pass
-
-    # 3. Month name date: DD MMM YYYY or MMM YYYY or MMM YY (e.g. JUL 20, 29 JUL 2020)
-    months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
-    m_name = re.search(r"\b(?:(\d{1,2})[/. -]?)?([a-z]{3,9})[/. -]?(\d{2,4})\b", s, re.I)
-    if m_name:
-        d_str, mon_str, y_str = m_name.group(1), m_name.group(2).lower()[:3], m_name.group(3)
-        if mon_str in months:
-            m_val = months.index(mon_str) + 1
-            y = int(y_str)
-            if y < 100:
-                y += 2000
-            d = int(d_str) if d_str else 1
-            if 1 <= m_val <= 12 and 1 <= d <= 31 and 2000 <= y <= 2099:
-                try:
-                    return datetime(y, m_val, d)
-                except ValueError:
-                    pass
-
-    # 4. 4-digit compressed date: e.g. 2920 or 0220 (DDYY or MMYY)
-    if re.fullmatch(r"\d{4}", s):
-        p1, y = int(s[:2]), int(s[2:])
+    m = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b", str(v))
+    if not m:
+        return None
+    d, m_val, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if y < 100:
         y += 2000
-        if 1 <= p1 <= 12 and 2000 <= y <= 2099:
-            return datetime(y, p1, 1)
-        elif 1 <= p1 <= 31 and 2000 <= y <= 2099:
-            return datetime(y, 1, p1)
-
-    return None
+    try:
+        return datetime(y, m_val, d)
+    except ValueError:
+        return None
 
 
 def required(name, val, pass_msg, ev=None):
@@ -178,40 +134,12 @@ def check_batch(p):
 def check_consumer(p):
     c = p.get("consumer_care")
     ev = evidence(p, "consumer_care_phone", "consumer_care_email", "consumer_care")
-
-    phone = None
-    email = None
-    if isinstance(c, dict):
-        phone = c.get("phone")
-        email = c.get("email")
-    elif isinstance(c, str) and present(c):
-        phone = c
-
-    # Fallback to evidence if consumer_care was not populated
-    if not phone and not email and ev:
-        for item in ev:
-            t = str(item.get("text", "")).strip()
-            em = re.search(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}", t)
-            if em and not email:
-                email = em.group(0)
-            pm = re.search(r"(?:PHONE|TEL|CELL|CALL|MOBILE|HELPLINE)[.:\s]*([0-9\s\-]{7,15})|(?:0\d{2,4}[-\s]?\d{3,4}[-\s]?\d{3,4})|(?:\b[6-9]\d{9}\b)", t, re.I)
-            if pm and not phone:
-                phone = pm.group(1) or pm.group(0)
-
-    # Build clean display value
-    parts = []
-    if present(phone):
-        p_str = str(phone).strip()
-        parts.append(f"Phone: {p_str}" if not p_str.upper().startswith("PHONE") else p_str)
-    if present(email):
-        e_str = str(email).strip()
-        parts.append(f"Email: {e_str}" if not e_str.upper().startswith("EMAIL") else e_str)
-
-    if parts:
-        display_val = " | ".join(parts)
-        return result("Consumer Care Details", "PASS", display_val, "Consumer care contact information detected.", "none", ev=ev)
-    return result("Consumer Care Details", "MISSING", None, "No usable consumer care contact information was detected.", "high", ev=ev)
-
+    phone = c.get("phone") if isinstance(c, dict) else (p.get("consumer_care_phone") or None)
+    email = c.get("email") if isinstance(c, dict) else (p.get("consumer_care_email") or None)
+    if (isinstance(c, dict) and (present(c.get("phone")) or present(c.get("email")))) or present(phone) or present(email) or len(ev) > 0:
+        val = c if (isinstance(c, dict) and (present(phone) or present(email))) else {"phone": phone or (ev[0].get("text") if ev else None), "email": email}
+        return result("Consumer Care Details", "PASS", val, "Consumer care contact information detected.", "none", ev=ev)
+    return result("Consumer Care Details", "MISSING", None, "No usable consumer care contact information was detected.", "high", ev)
 
 
 def check_usp(p):
@@ -230,74 +158,38 @@ def check_origin(p):
     return result("Country of Origin", "REVIEW", None, "Country of origin was not extracted. This field is conditional and should be assessed from the product/import circumstances.", "medium", ev)
 
 
-def check_net_quantity(p):
-    v = p.get("net_quantity")
-    ev = evidence(p, "net_quantity")
-    if not present(v):
-        return result("Net Quantity", "MISSING", None, "No net quantity declaration was detected.", "high", ev)
-    # Normalize and compute total for 'base + extra' formats
-    display, total, unit = normalize_net_quantity(v)
-    if total is not None and unit is not None:
-        reason = f"Net quantity declaration detected. Total: {total:g}{unit}."
-        return result("Net Quantity", "PASS", display, reason, "none", ev=ev)
-    return result("Net Quantity", "PASS", v, "Net quantity declaration detected.", "none", ev=ev)
+def check_preservatives(p):
+    analysis = analyze_preservatives(p)
+    findings = analysis.get("preservatives_found", [])
+    ev = []
+    for item in findings:
+        if isinstance(item.get("evidence"), dict):
+            ev.append(item["evidence"])
 
+    if not findings:
+        if p.get("ingredients"):
+            return result("Preservative Safety", "PASS", "Clean label (No synthetic Class II preservatives declared)", "Ingredients declaration audited against FSSAI reference additives; no synthetic Class II chemical preservatives detected (Clean Label).", "none", ev)
+        return result("Preservative Safety", "REVIEW", None, "No ingredients declaration was reliably extracted to audit preservatives; manual label confirmation is recommended.", "medium", ev)
 
-def normalize_net_quantity(v):
-    """
-    Normalizes net quantity strings, computing totals for 'base + extra' formats.
-    e.g. '110g+20gE' -> '130g (110g + 20g Extra)'
-         '500ml'     -> '500ml'
-    Returns (normalized_display_string, numeric_total, unit) or (original, None, None).
-    """
-    if not v:
-        return v, None, None
-    s = str(v).strip()
-    # Detect if the string contains an 'extra' indicator (E suffix, 'Extra', 'EXTRA' etc.)
-    has_extra = bool(re.search(r"\b[Ee]xtra\b|(?<=[0-9])[eE]\b|(?<=[a-z])[eE]\b", s))
-
-    # If already normalized with parenthetical breakdown e.g. '130g (110g + 20g Extra)'
-    if "(" in s and ")" in s:
-        clean_s = re.sub(r"\(.*?\)", "", s).strip()
-        m = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*(kg|g|mg|l|ml|cm|m)\b", clean_s, re.I)
-        if m:
-            return s, float(m.group(1)), m.group(2).lower()
-
-    # Regex to find all numeric+unit segments (handles '20gE', '20g Extra', '20g EXTRA', '20g e')
-    seg_rx = re.compile(
-        r"([0-9]+(?:\.[0-9]+)?)\s*(kg|g|mg|l|ml|cm|m)(?:[eE][xX][tT][rRaA]*|[eE]\b|\s+[Ee]xtra)?",
-        re.I
-    )
-    segments = seg_rx.findall(s)
-    if not segments:
-        return s, None, None
-    units = [u.lower() for _, u in segments]
-    # All segments must share the same unit to sum
-    if len(set(units)) == 1:
-        total = sum(float(n) for n, _ in segments)
-        unit = units[0]
-        if len(segments) > 1:
-            base_parts = " + ".join(f"{n}{u}" for n, u in segments[:-1])
-            last_n, last_u = segments[-1]
-            if has_extra:
-                display = f"{total:g}{unit} ({base_parts} + {last_n}{last_u} Extra)"
-            else:
-                display = f"{total:g}{unit} ({base_parts} + {last_n}{last_u})"
-            return display, total, unit
-        else:
-            return s, float(segments[0][0]), unit
-    return s, None, None
-
+    if analysis.get("has_banned_preservative") or analysis.get("banned_preservatives"):
+        banned_names = ", ".join(b.get("name", "Unknown") for b in analysis.get("banned_preservatives", []))
+        return result("Preservative Safety", "FAIL", analysis, f"CRITICAL NON-COMPLIANCE: Prohibited substance ({banned_names}) detected! Banned in India under FSSAI regulations.", "high", ev)
+    if analysis.get("limit_exceeded"):
+        exceeded_names = ", ".join(f"{e.get('name', 'Preservative')} ({e.get('amount_mg_per_kg')} mg/kg > {e.get('fssai_limit_mg_per_kg')} mg/kg)" for e in analysis.get("limit_exceeded", []))
+        return result("Preservative Safety", "FAIL", analysis, f"FSSAI LIMIT EXCEEDED: Declared preservative ({exceeded_names}) exceeds statutory permissible maximum.", "high", ev)
+    if analysis.get("requires_manual_review"):
+        return result("Preservative Safety", "REVIEW", analysis, "Preservative detected, but category-specific FSSAI limit or declared quantity requires manual inspector verification.", "medium", ev)
+    if analysis.get("has_flagged_preservative"):
+        return result("Preservative Safety", "REVIEW", analysis, "A concern-listed preservative was detected; verify category and label usage against FSSAI schedule.", "medium", ev)
+    return result("Preservative Safety", "PASS", analysis, "Detected preservative quantities are within statutory FSSAI reference limits.", "none", ev)
 
 
 def parse_quantity(v):
     if not v:
         return None
-    _, total, unit = normalize_net_quantity(v)
-    if total is not None and unit is not None:
-        return (total, unit)
-    # Fallback: direct parse without + handling
     s = str(v).lower().replace(",", "")
+    if "+" in s:
+        return None
     m = re.search(r"([0-9]+(?:\.[0-9]+)?)\s*(kg|g|mg|l|ml|cm|m)\b", s)
     return (float(m.group(1)), m.group(2)) if m else None
 
@@ -344,12 +236,23 @@ def confidence_review(check):
     return check
 
 
+def check_manufacturer(p):
+    mfg = p.get("manufacturer")
+    addr = p.get("manufacturer_address")
+    ev = evidence(p, "manufacturer", "manufacturer_address")
+    if present(mfg) and present(addr):
+        return result("Manufacturer / Packer / Importer", "PASS", f"{mfg}, {addr}", "Manufacturer/packer/importer name and address detected.", "none", ev=ev)
+    elif present(mfg) or present(addr):
+        return result("Manufacturer / Packer / Importer", "PASS", mfg or addr, "Manufacturer/packer/importer declaration detected.", "none", ev=ev)
+    return result("Manufacturer / Packer / Importer", "MISSING", None, "No manufacturer/packer/importer declaration was detected on the label.", "high", ev)
+
+
 def evaluate_compliance(p: dict) -> dict:
     checks = [
         required("Manufacturer / Packer / Importer", p.get("manufacturer"), "Manufacturer/packer/importer declaration detected.", evidence(p, "manufacturer")),
         required("Manufacturer Address", p.get("manufacturer_address"), "Manufacturer/packer/importer address detected.", evidence(p, "manufacturer_address")),
         check_product(p),
-        check_net_quantity(p),
+        required("Net Quantity", p.get("net_quantity"), "Net quantity declaration detected.", evidence(p, "net_quantity")),
         check_mrp(p),
         check_tax(p),
         check_date(p),
@@ -360,7 +263,11 @@ def evaluate_compliance(p: dict) -> dict:
         check_origin(p)
     ]
     checks = [confidence_review(c) for c in checks]
-    validations = [confidence_review(validation_mrp_usp(p)), confidence_review(validation_dates(p))]
+    validations = [
+        confidence_review(validation_mrp_usp(p)),
+        confidence_review(validation_dates(p)),
+        confidence_review(check_preservatives(p)),
+    ]
     statuses = [c["status"] for c in checks]
 
     overall = "NON_COMPLIANT" if "FAIL" in statuses else ("REVIEW_REQUIRED" if any(s in statuses for s in ("MISSING", "REVIEW")) else "PASS")
@@ -378,6 +285,7 @@ def evaluate_compliance(p: dict) -> dict:
         "review_required": review,
         "checks": checks,
         "validation_checks": validations,
+        "preservative_analysis": analyze_preservatives(p),
         "validation_summary": {
             "passed": sum(x["status"] == "PASS" for x in validations),
             "failed": sum(x["status"] == "FAIL" for x in validations),

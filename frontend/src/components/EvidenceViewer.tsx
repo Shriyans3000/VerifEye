@@ -6,26 +6,22 @@ import { EvidencePanel } from './EvidencePanel';
 
 interface EvidenceViewerProps {
   imageFile?: File | null;
-  imageUrl?: string | null;
   selectedCheck: CheckItem | null;
   selectedCheckIndex: number | null;
   allChecks: CheckItem[];
   showAllRegions: boolean;
   onToggleShowAllRegions: (val: boolean) => void;
   onSelectRegion?: (item: EvidenceItem) => void;
-  focusedRegion?: EvidenceItem | null;
 }
 
 export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
   imageFile,
-  imageUrl,
   selectedCheck,
   selectedCheckIndex,
   allChecks,
   showAllRegions,
   onToggleShowAllRegions,
   onSelectRegion,
-  focusedRegion,
 }) => {
   const [zoom, setZoom] = useState<number>(1);
   const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number }>({
@@ -37,20 +33,19 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Local object URL for the uploaded file with cleanup, or direct image URL
+  // Local object URL for the uploaded file with cleanup
   const imageSrc = useMemo(() => {
-    if (imageUrl) return imageUrl;
     if (!imageFile) return null;
     return URL.createObjectURL(imageFile);
-  }, [imageFile, imageUrl]);
+  }, [imageFile]);
 
   useEffect(() => {
     return () => {
-      if (imageSrc && !imageUrl) {
+      if (imageSrc) {
         URL.revokeObjectURL(imageSrc);
       }
     };
-  }, [imageSrc, imageUrl]);
+  }, [imageSrc]);
 
   // Aggregate all unique background OCR evidence items across all checks
   const allEvidenceItems = useMemo(() => {
@@ -107,12 +102,8 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
     setZoom(Math.max(0.4, Math.round(fitScale * 100) / 100));
   };
 
-  const selectedEvidence = focusedRegion
-    ? [focusedRegion]
-    : selectedCheck?.evidence || [];
-  const selectedRuleName = focusedRegion
-    ? focusedRegion.text ? `Region #${focusedRegion.ocr_id} — "${focusedRegion.text}"` : `Region #${focusedRegion.ocr_id}`
-    : selectedCheck?.rule_name || selectedCheck?.field;
+  const selectedEvidence = selectedCheck?.evidence || [];
+  const selectedRuleName = selectedCheck?.rule_name || selectedCheck?.field;
 
   return (
     <div id="visual-evidence-viewer" className="bg-white rounded-lg border border-slate-300 shadow-sm overflow-hidden">

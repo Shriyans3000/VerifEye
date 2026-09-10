@@ -14,7 +14,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp", "image/jpg", "application/octet-stream"}
 
 
-@router.post("/api/analyze")
+@router.post("/analyze")
 async def analyze_label(
     file: UploadFile | None = File(None),
     files: list[UploadFile] | None = File(None)
@@ -104,18 +104,12 @@ async def analyze_label(
         result["filename"] = filenames[0] if len(filenames) == 1 else f"{filenames[0]} + {filenames[1]}"
         result["filenames"] = filenames
 
-        from backend.config import MONGODB_URI
-        if MONGODB_URI:
-            from backend.database import save_inspection
-            try:
-                saved_doc = save_inspection(result, filename=result["filename"])
-                result["inspection_id"] = saved_doc.get("inspection_id", inspection_id)
-            except Exception as db_err:
-                logger.error(f"MongoDB persistence failed for {filenames}: {db_err}")
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Inspection persistence error: Could not save inspection record to database."
-                )
+        from backend.database import save_inspection
+        try:
+            saved_doc = save_inspection(result, filename=result["filename"])
+            result["inspection_id"] = saved_doc.get("inspection_id", inspection_id)
+        except Exception as db_err:
+            logger.warning(f"MongoDB persistence failed for {filenames} (result still returned): {db_err}")
 
         return result
 
@@ -129,6 +123,11 @@ async def analyze_label(
         )
     except RuntimeError as e:
         logger.error(f"Pipeline execution error: {e}")
+        if "GROQ_API_KEY is not set" in str(e):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="GROQ_API_KEY is not configured. Add it to the project .env file and restart the backend."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal pipeline processing error."

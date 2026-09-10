@@ -29,8 +29,39 @@ export interface ProductInformation {
   tax_inclusive_mrp: boolean | null;
   fssai_number: string | null;
   dimensions: string | null;
-  declared_quantity?: string | null;
-  calculated_total_quantity?: string | null;
+  food_category: string | null;
+  ingredients: string | null;
+  preservatives: PreservativeItem[];
+}
+
+export interface PreservativeItem {
+  name: string | null;
+  canonical_name?: string | null;
+  ins_number?: string | null;
+  amount_mg_per_kg?: number | null;
+  fssai_limit_mg_per_kg?: number | null;
+  status?: string;
+  is_banned_in_india?: boolean;
+  banned_countries?: string[];
+  health_concerns?: string | null;
+  risk_flag?: boolean;
+  description?: string | null;
+  reason?: string;
+  evidence?: EvidenceItem | null;
+}
+
+export interface PreservativeAnalysis {
+  reference_version?: string;
+  food_category?: string | null;
+  preservatives_found: PreservativeItem[];
+  flagged_preservatives: PreservativeItem[];
+  limit_exceeded: PreservativeItem[];
+  banned_preservatives: PreservativeItem[];
+  has_flagged_preservative: boolean;
+  has_banned_preservative: boolean;
+  has_limit_exceeded: boolean;
+  critical_alert?: string | null;
+  requires_manual_review: boolean;
 }
 
 export interface CheckItem {
@@ -65,47 +96,6 @@ export interface InspectionMeta {
   timestamp: string;
 }
 
-export interface ReadabilityRegion {
-  ocr_id: number;
-  image_index: number;
-  text: string;
-  confidence: number;
-  bbox: any;
-  height_px: number;
-  width_px: number;
-  normalized_height_pct: number;
-  area_px: number;
-  contrast: number;
-  contrast_rating: string;
-  sharpness: number;
-  sharpness_rating: string;
-  readability_status: string;
-  reason: string;
-}
-
-export interface ReadabilitySummary {
-  overall_status: string;
-  total_regions: number;
-  readable_count: number;
-  review_count: number;
-  small_text_count: number;
-  low_contrast_count: number;
-  blurry_count: number;
-  low_confidence_count: number;
-  average_text_height_px: number;
-  smallest_detected_text_px: number;
-  average_confidence: number;
-  physical_font_size: {
-    status: string;
-    reason: string;
-  };
-}
-
-export interface ReadabilityData {
-  summary: ReadabilitySummary;
-  regions: ReadabilityRegion[];
-}
-
 export interface AnalyzeResponse {
   inspection_id?: string;
   filename?: string;
@@ -117,7 +107,8 @@ export interface AnalyzeResponse {
   product: ProductInformation;
   checks: CheckItem[];
   validation_checks: ValidationItem[];
-  readability?: ReadabilityData;
+  preservative_analysis?: PreservativeAnalysis;
+  readability?: any;
   meta?: InspectionMeta;
 }
 

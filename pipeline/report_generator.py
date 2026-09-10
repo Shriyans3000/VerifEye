@@ -3,12 +3,12 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.platypus import (
+from reportlab.lib import colors  # pyrefly: ignore [missing-import] # type: ignore
+from reportlab.lib.enums import TA_CENTER  # pyrefly: ignore [missing-import] # type: ignore
+from reportlab.lib.pagesizes import A4  # pyrefly: ignore [missing-import] # type: ignore
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle  # pyrefly: ignore [missing-import] # type: ignore
+from reportlab.lib.units import mm  # pyrefly: ignore [missing-import] # type: ignore
+from reportlab.platypus import (  # pyrefly: ignore [missing-import] # type: ignore
     SimpleDocTemplate,
     Paragraph,
     Spacer,

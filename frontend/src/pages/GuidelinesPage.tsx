@@ -1,5 +1,6 @@
 import React from 'react';
-import { BookOpen, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BookOpen, ShieldAlert, CheckCircle2, AlertCircle, FlaskConical, ArrowRight } from 'lucide-react';
 
 export const GuidelinesPage: React.FC = () => {
   const declarationRules = [
@@ -135,6 +136,34 @@ export const GuidelinesPage: React.FC = () => {
             VerifEye provides automated inspection assistance based on implemented Legal Metrology declaration checks. This guidance is provided for enforcement reference and does not constitute formal legal counsel. Final administrative or compounding decisions rest solely with authorized Legal Metrology officers under the Legal Metrology Act, 2009.
           </p>
         </div>
+      </div>
+
+      {/* FSSAI Preservatives & Additives Codex Spotlight */}
+      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-xl p-5 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start space-x-3.5">
+          <div className="bg-amber-500/20 p-2.5 rounded-lg border border-amber-500/30 text-amber-400 flex-shrink-0 mt-0.5">
+            <FlaskConical className="h-6 w-6" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="font-black text-white text-sm">FSSAI Preservatives & Chemical Additives Codex</span>
+              <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded">
+                Banned Chemical Registry
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Explore our full directory of food preservatives, statutory FSSAI permissible ceilings (ppm), toxicological hazards, and international ban cross-references (EU, UK, Japan, US FDA, California AB 418).
+            </p>
+          </div>
+        </div>
+
+        <Link
+          to="/preservatives"
+          className="inline-flex items-center space-x-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs transition-colors flex-shrink-0 shadow-xs"
+        >
+          <span>Open Preservatives Codex</span>
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
 
       {/* 12 Mandatory Declaration Checks */}

@@ -8,4 +8,5 @@ paddlepaddle==3.3.0
 paddleocr>=2.7.0
 pymongo>=4.6.0
 dnspython>=2.6.0
-
+httpx2>=2.12.0
+pytest>=8.0.0

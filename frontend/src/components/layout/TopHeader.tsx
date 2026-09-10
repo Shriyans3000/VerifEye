@@ -1,15 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Server, UserCheck, AlertTriangle, ChevronDown, LogOut } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Server, UserCheck, AlertTriangle } from 'lucide-react';
 import { checkHealth } from '../../services/api';
-import { useAuth, UserRole } from '../../context/AuthContext';
 
 export const TopHeader: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, setRole, logout } = useAuth();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
-  const [roleDropdownOpen, setRoleDropdownOpen] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -27,16 +23,8 @@ export const TopHeader: React.FC = () => {
   }, []);
 
   const getSectionTitle = (pathname: string): { title: string; subtitle: string } => {
-    if (pathname.startsWith('/repository')) {
-      return {
-        title: 'Product & Brand Repository',
-        subtitle: 'Digital enforcement archive, brand hierarchies, and historical inspection records',
-      };
-    }
-
     switch (pathname) {
       case '/':
-      case '/dashboard':
         return {
           title: 'Officer Dashboard',
           subtitle: 'Enforcement overview and active session inspection state',
@@ -99,7 +87,7 @@ export const TopHeader: React.FC = () => {
           <p className="text-xs text-slate-500">{subtitle}</p>
         </div>
 
-        {/* Right Status & Officer Info with Role Switcher */}
+        {/* Right Status & Officer Info (Neutral) */}
         <div className="flex items-center space-x-3 text-xs">
           {/* Real Backend Status */}
           <div className="bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-md flex items-center space-x-2">
@@ -123,71 +111,17 @@ export const TopHeader: React.FC = () => {
             )}
           </div>
 
-          {/* Role Switcher & Officer Profile */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-              className="bg-slate-100 hover:bg-slate-200/80 border border-slate-300 px-3 py-1.5 rounded-md flex items-center space-x-2 text-slate-700 transition-colors cursor-pointer"
-            >
-              <UserCheck className="h-4 w-4 text-amber-600" />
-              <div className="text-left">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-slate-900 block text-[11px] leading-tight">
-                    {user?.name || 'Inspection Officer'}
-                  </span>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold border border-amber-300">
-                    {user?.role || 'Officer'}
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-500 block leading-tight font-mono">
-                  {user?.badgeId || 'LM-DEL-8921'}
-                </span>
-              </div>
-              <ChevronDown className="w-3 h-3 text-slate-400 ml-1" />
-            </button>
-
-            {/* Role Switcher Dropdown */}
-            {roleDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 p-2 text-xs">
-                <div className="px-2 py-1 border-b border-slate-100 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Switch Active Role (Demo UI)
-                </div>
-                <div className="py-1 space-y-1">
-                  {(['Enforcement Officer', 'Senior Officer', 'Administrator'] as UserRole[]).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => {
-                        setRole(r);
-                        setRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors flex items-center justify-between ${
-                        user?.role === r
-                          ? 'bg-blue-50 text-blue-700 font-bold'
-                          : 'text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span>{r}</span>
-                      {user?.role === r && <span className="text-[10px] text-blue-600 font-bold">&check;</span>}
-                    </button>
-                  ))}
-                </div>
-                <div className="pt-1 border-t border-slate-100 mt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      logout();
-                      setRoleDropdownOpen(false);
-                      navigate('/login');
-                    }}
-                    className="w-full text-left px-2 py-1.5 rounded text-xs text-rose-600 hover:bg-rose-50 font-medium flex items-center gap-1.5"
-                  >
-                    <LogOut className="w-3.5 h-3.5" /> Sign Out / Switch User
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* Neutral Officer Identity (Strictly no fake IDs or personal names) */}
+          <div className="bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-md flex items-center space-x-2 text-slate-700">
+            <UserCheck className="h-4 w-4 text-amber-600" />
+            <div className="text-left">
+              <span className="font-bold text-slate-900 block text-[11px] leading-tight">
+                INSPECTION OFFICER
+              </span>
+              <span className="text-[10px] text-slate-500 block leading-tight">
+                District Enforcement Cell
+              </span>
+            </div>
           </div>
         </div>
       </div>
