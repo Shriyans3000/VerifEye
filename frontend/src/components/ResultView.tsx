@@ -24,6 +24,9 @@ import {
   FlaskConical,
   BookOpen,
   FolderPlus,
+  Activity,
+  Flame,
+  HeartPulse,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AnalyzeResponse, CheckItem, ValidationItem, EvidenceItem } from '../types/api';
@@ -40,6 +43,7 @@ interface ResultViewProps {
 export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
   const { status, compliance_score, summary, product, checks = [], validation_checks = [] } = data;
   const preservativeAnalysis = data.preservative_analysis;
+  const nutritionAnalysis = data.nutrition_analysis;
 
   // Selected check state
   const [selectedCheckIndex, setSelectedCheckIndex] = useState<number | null>(() => {
@@ -214,7 +218,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
 
         {/* Summary Numbers & Report Button */}
         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full md:w-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 w-full sm:w-auto text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto text-center">
             <div className="bg-white/80 border border-slate-300 rounded px-3 py-1.5 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-500 block">Score</span>
               <span className="text-lg font-black text-slate-900">{compliance_score}%</span>
@@ -252,6 +256,25 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
                   : (preservativeAnalysis?.preservatives_found?.length || 0) > 0
                   ? `${preservativeAnalysis?.preservatives_found?.length} Found`
                   : 'Clean Label'}
+              </span>
+            </a>
+            <a
+              href="#fssai-nutrition-warnings-card"
+              className={`rounded px-2.5 py-1.5 shadow-2xs transition block border ${
+                nutritionAnalysis?.has_warning
+                  ? 'bg-rose-100 border-rose-400 text-rose-800 hover:bg-rose-200 animate-pulse'
+                  : nutritionAnalysis?.indicators_list?.every((i) => i.status === 'REVIEW')
+                  ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
+                  : 'bg-emerald-50 border-emerald-300 text-emerald-900 hover:bg-emerald-100'
+              }`}
+            >
+              <span className="text-[10px] uppercase font-bold block opacity-75">FSSAI FOP</span>
+              <span className="text-xs font-black block truncate max-w-[85px]">
+                {nutritionAnalysis?.has_warning
+                  ? `🚨 ${nutritionAnalysis.warnings[0]}`
+                  : nutritionAnalysis?.indicators_list?.every((i) => i.status === 'REVIEW')
+                  ? 'HFSS Review'
+                  : 'FOPNL Safe'}
               </span>
             </a>
           </div>
@@ -517,19 +540,267 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Preservatives Codex Footer Link */}
-        <div className="bg-slate-50 px-4 py-2.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="text-slate-600 flex items-center gap-1.5 text-[11px]">
-            <Info className="h-3.5 w-3.5 text-slate-400" />
-            <span>Statutory Reference: FSSAI Food Safety & Standards (Food Additives) Regulations, 2011</span>
-          </span>
-          <Link
-            to="/preservatives"
-            className="text-amber-700 hover:text-amber-800 font-bold hover:underline inline-flex items-center gap-1 text-[11px]"
-          >
-            <span>Explore FSSAI Preservative Codex & Banned Additives Registry →</span>
-          </Link>
+      {/* FSSAI Front-of-Pack Nutrition Warnings Audit (HFSS: High Fat, Sugar, Salt) */}
+      <div className="bg-white rounded-lg border border-slate-300 shadow-sm overflow-hidden" id="fssai-nutrition-warnings-card">
+        <div className="bg-slate-900 text-white px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-wider flex items-center space-x-2">
+            <Activity className="h-4 w-4 text-amber-500" />
+            <span>FSSAI Front-of-Pack Nutrition Warnings (HFSS Audit)</span>
+          </h3>
+          <div className="flex items-center space-x-2 text-xs">
+            <span className="text-slate-400 font-mono text-[11px]">
+              FSSAI FOPNL • Basis: {nutritionAnalysis?.basis_unit || '100g'}
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                nutritionAnalysis?.has_warning
+                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                  : nutritionAnalysis?.indicators_list?.every((i) => i.status === 'REVIEW')
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                  : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              }`}
+            >
+              {nutritionAnalysis?.has_warning
+                ? `${nutritionAnalysis.warnings_count} Warning(s) Mandated`
+                : nutritionAnalysis?.indicators_list?.every((i) => i.status === 'REVIEW')
+                ? 'Review Mandated'
+                : 'Compliant Profile'}
+            </span>
+          </div>
+        </div>
+
+        {/* Warning Banner if applicable */}
+        {nutritionAnalysis?.has_warning && (
+          <div className="bg-rose-600 text-white p-4 border-b border-rose-700 flex items-start space-x-3">
+            <AlertOctagon className="h-5 w-5 text-white flex-shrink-0 mt-0.5 animate-bounce" />
+            <div>
+              <h4 className="font-black text-sm uppercase tracking-wide">
+                STATUTORY ALERT: FRONT-OF-PACK NUTRITION WARNING REQUIRED ({nutritionAnalysis.warnings.join(' • ')})
+              </h4>
+              <p className="text-xs text-rose-100 mt-0.5 leading-relaxed">
+                This product exceeds statutory front-of-pack nutrient thresholds under FSSAI Front-of-Pack Labelling regulations. A high-visibility cautionary warning label must be displayed on the principal display panel.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            {/* FAT INDICATOR CARD */}
+            {(() => {
+              const ind = nutritionAnalysis?.indicators?.fat || {
+                id: 'indicator_fat',
+                name: 'Fat Content',
+                warning_title: 'HIGH FAT',
+                status: 'REVIEW',
+                warning_triggered: false,
+                declared_value: 'Not detected in OCR',
+                threshold: 'Total Fat > 15g or Sat Fat > 4g per 100g',
+                reason: 'Nutrition declaration not detected on label to determine fat status.',
+              };
+              const isHigh = ind.status === 'HIGH' || ind.warning_triggered;
+              const isReview = ind.status === 'REVIEW';
+
+              return (
+                <div
+                  className={`rounded-lg border p-3.5 space-y-2 transition shadow-xs flex flex-col justify-between ${
+                    isHigh
+                      ? 'border-rose-300 bg-rose-50/50'
+                      : isReview
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-emerald-200 bg-emerald-50/40'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <Flame className={`h-3.5 w-3.5 ${isHigh ? 'text-rose-600' : 'text-slate-500'}`} />
+                        <span>Fat / Saturated Fat</span>
+                      </span>
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
+                          isHigh
+                            ? 'bg-rose-100 text-rose-800 border-rose-300'
+                            : isReview
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        {isHigh ? '🚨 HIGH FAT' : isReview ? 'REVIEW' : 'MODERATE'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 rounded p-2 border border-slate-200/80">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">Declared Content</span>
+                      <span className="text-xs font-black text-slate-900 font-mono block mt-0.5">
+                        {ind.declared_value}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-snug">
+                      {ind.reason}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="font-mono truncate">Limit: {ind.threshold}</span>
+                    {ind.evidence && (
+                      <span className="text-amber-700 font-semibold cursor-pointer underline flex-shrink-0">
+                        Evidence #{ind.evidence.ocr_id}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* SUGAR INDICATOR CARD */}
+            {(() => {
+              const ind = nutritionAnalysis?.indicators?.sugar || {
+                id: 'indicator_sugar',
+                name: 'Sugar Content',
+                warning_title: 'HIGH SUGAR',
+                status: 'REVIEW',
+                warning_triggered: false,
+                declared_value: 'Not detected in OCR',
+                threshold: 'Total Sugars > 10g per 100g',
+                reason: 'Nutrition declaration not detected on label to determine sugar status.',
+              };
+              const isHigh = ind.status === 'HIGH' || ind.warning_triggered;
+              const isReview = ind.status === 'REVIEW';
+
+              return (
+                <div
+                  className={`rounded-lg border p-3.5 space-y-2 transition shadow-xs flex flex-col justify-between ${
+                    isHigh
+                      ? 'border-rose-300 bg-rose-50/50'
+                      : isReview
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-emerald-200 bg-emerald-50/40'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <HeartPulse className={`h-3.5 w-3.5 ${isHigh ? 'text-rose-600' : 'text-slate-500'}`} />
+                        <span>Sugar / Added Sugars</span>
+                      </span>
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
+                          isHigh
+                            ? 'bg-rose-100 text-rose-800 border-rose-300'
+                            : isReview
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        {isHigh ? '🚨 HIGH SUGAR' : isReview ? 'REVIEW' : 'MODERATE'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 rounded p-2 border border-slate-200/80">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">Declared Content</span>
+                      <span className="text-xs font-black text-slate-900 font-mono block mt-0.5">
+                        {ind.declared_value}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-snug">
+                      {ind.reason}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="font-mono truncate">Limit: {ind.threshold}</span>
+                    {ind.evidence && (
+                      <span className="text-amber-700 font-semibold cursor-pointer underline flex-shrink-0">
+                        Evidence #{ind.evidence.ocr_id}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* SALT / SODIUM INDICATOR CARD */}
+            {(() => {
+              const ind = nutritionAnalysis?.indicators?.salt || {
+                id: 'indicator_salt',
+                name: 'Salt / Sodium Content',
+                warning_title: 'HIGH SALT',
+                status: 'REVIEW',
+                warning_triggered: false,
+                declared_value: 'Not detected in OCR',
+                threshold: 'Sodium > 400mg (or Salt > 1g) per 100g',
+                reason: 'Nutrition declaration not detected on label to determine salt status.',
+              };
+              const isHigh = ind.status === 'HIGH' || ind.warning_triggered;
+              const isReview = ind.status === 'REVIEW';
+
+              return (
+                <div
+                  className={`rounded-lg border p-3.5 space-y-2 transition shadow-xs flex flex-col justify-between ${
+                    isHigh
+                      ? 'border-rose-300 bg-rose-50/50'
+                      : isReview
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-emerald-200 bg-emerald-50/40'
+                  }`}
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <Scale className={`h-3.5 w-3.5 ${isHigh ? 'text-rose-600' : 'text-slate-500'}`} />
+                        <span>Salt / Sodium (NaCl)</span>
+                      </span>
+                      <span
+                        className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
+                          isHigh
+                            ? 'bg-rose-100 text-rose-800 border-rose-300'
+                            : isReview
+                            ? 'bg-amber-100 text-amber-800 border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        }`}
+                      >
+                        {isHigh ? '🚨 HIGH SALT' : isReview ? 'REVIEW' : 'MODERATE'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 rounded p-2 border border-slate-200/80">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">Declared Content</span>
+                      <span className="text-xs font-black text-slate-900 font-mono block mt-0.5">
+                        {ind.declared_value}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-snug">
+                      {ind.reason}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] text-slate-500">
+                    <span className="font-mono truncate">Limit: {ind.threshold}</span>
+                    {ind.evidence && (
+                      <span className="text-amber-700 font-semibold cursor-pointer underline flex-shrink-0">
+                        Evidence #{ind.evidence.ocr_id}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="p-2.5 rounded bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              <strong>FSSAI Regulatory Standard:</strong> Food Safety and Standards (Labelling and Display) Regulations, 2020 & Draft FOPNL Guidelines.
+            </span>
+            <span className="italic font-mono text-[10px]">
+              Portion Basis: Standard Metric 100g / 100ml
+            </span>
+          </div>
         </div>
       </div>
 

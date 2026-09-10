@@ -34,7 +34,13 @@ DEFAULT_SEED_INSPECTIONS = [
             "expiry_date": "02/2027",
             "consumer_care": "care@haldirams.com / +91-120-2400240",
             "fssai_license": "10012051000096",
-            "veg_logo": "Green Vegetarian Dot Verified"
+            "veg_logo": "Green Vegetarian Dot Verified",
+            "nutrition": {
+                "total_fat_g": 42.0,
+                "saturated_fat_g": 18.0,
+                "total_sugar_g": 2.0,
+                "sodium_mg": 740.0
+            }
         },
         "summary": {
             "passed": 12,
@@ -79,7 +85,13 @@ DEFAULT_SEED_INSPECTIONS = [
             "expiry_date": "11/2026",
             "consumer_care": "consumer.feedback@pepsico.com / 1800-22-4020",
             "fssai_license": "10014064000435",
-            "veg_logo": "Green Vegetarian Dot Present"
+            "veg_logo": "Green Vegetarian Dot Present",
+            "nutrition": {
+                "total_fat_g": 34.5,
+                "saturated_fat_g": 14.2,
+                "total_sugar_g": 4.5,
+                "sodium_mg": 670.0
+            }
         },
         "summary": {
             "passed": 10,
@@ -124,7 +136,13 @@ DEFAULT_SEED_INSPECTIONS = [
             "expiry_date": "02/2027",
             "consumer_care": "support@haldiramsnagpur.com / 1800-209-1234",
             "fssai_license": "10012022000338",
-            "veg_logo": "Vegetarian Symbol Certified"
+            "veg_logo": "Vegetarian Symbol Certified",
+            "nutrition": {
+                "total_fat_g": 39.0,
+                "saturated_fat_g": 16.0,
+                "total_sugar_g": 1.2,
+                "sodium_mg": 810.0
+            }
         },
         "summary": {
             "passed": 12,
@@ -321,6 +339,14 @@ _in_memory_repos: dict[str, dict] = {
     repo["repository_id"]: dict(repo) for repo in DEFAULT_BRAND_REPOSITORIES
 }
 
+try:
+    from pipeline.nutrition_analysis import analyze_nutrition
+    for _doc in DEFAULT_SEED_INSPECTIONS:
+        if "nutrition_analysis" not in _doc:
+            _doc["nutrition_analysis"] = analyze_nutrition(_doc.get("product") or {})
+except Exception as _nut_init_err:
+    logger.warning(f"Could not initialize seed nutrition analysis: {_nut_init_err}")
+
 _in_memory_db: dict[str, dict] = {
     doc["inspection_id"]: dict(doc) for doc in DEFAULT_SEED_INSPECTIONS
 }
@@ -396,6 +422,9 @@ def save_inspection(analysis_result: dict, filename: str = "") -> dict:
         "product": analysis_result.get("product", {}),
         "checks": analysis_result.get("checks", []),
         "validation_checks": analysis_result.get("validation_checks", []),
+        "preservative_analysis": analysis_result.get("preservative_analysis") or {},
+        "nutrition_analysis": analysis_result.get("nutrition_analysis") or {},
+        "readability": analysis_result.get("readability") or {},
         "meta": analysis_result.get("meta", {}),
         "created_at": datetime.utcnow().isoformat()
     }

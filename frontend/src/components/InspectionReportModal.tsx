@@ -13,6 +13,7 @@ import {
   Layers,
   Scale,
   Eye,
+  Activity,
 } from 'lucide-react';
 import { AnalyzeResponse, CheckItem, ValidationItem } from '../types/api';
 
@@ -41,9 +42,49 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
     checks = [],
     validation_checks = [],
     preservative_analysis,
+    nutrition_analysis,
     readability,
     meta,
   } = data;
+
+  const nutritionData = nutrition_analysis || (data as any).nutrition_analysis || {
+    has_warning: false,
+    warnings: [],
+    warnings_count: 0,
+    overall_summary: "Nutritional declarations not detected on label to determine HFSS warning status.",
+    indicators_list: [
+      {
+        id: "indicator_fat",
+        name: "Fat Content",
+        warning_title: "HIGH FAT",
+        status: "REVIEW",
+        warning_triggered: false,
+        declared_value: "Not detected in OCR",
+        threshold: "Total Fat > 15g or Sat Fat > 4g per 100g",
+        reason: "Nutritional declaration for fat is not detected or partially obscured on package.",
+      },
+      {
+        id: "indicator_sugar",
+        name: "Sugar Content",
+        warning_title: "HIGH SUGAR",
+        status: "REVIEW",
+        warning_triggered: false,
+        declared_value: "Not detected in OCR",
+        threshold: "Total Sugars > 10g per 100g",
+        reason: "Nutritional declaration for sugar is not detected on package.",
+      },
+      {
+        id: "indicator_salt",
+        name: "Salt / Sodium Content",
+        warning_title: "HIGH SALT",
+        status: "REVIEW",
+        warning_triggered: false,
+        declared_value: "Not detected in OCR",
+        threshold: "Sodium > 400mg (or Salt > 1g) per 100g",
+        reason: "Nutritional declaration for sodium/salt is not detected on package.",
+      },
+    ],
+  };
 
   const readabilityData = readability || (data as any).readability;
   const readabilitySummary = readabilityData?.summary || {
@@ -674,6 +715,122 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
               <p className="text-[8.5px] text-slate-500 italic mt-1 leading-tight">
                 * Note on Rule 9 Metrology Calibration: Physical font size requirement (1.0mm - 4.0mm based on packaging area under PCR 2011) is estimated via image sensor pixel density. Physical verification with a calibrated optical scale gauge is recommended where camera focal distance reference is uncalibrated.
               </p>
+            </div>
+
+            {/* Section 4D: FSSAI Front-of-Pack Nutrition Warning Audit (HFSS) */}
+            <div className="print-avoid-break">
+              <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-1 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <Activity className="h-3.5 w-3.5 text-amber-600" />
+                  <span>FSSAI Front-of-Pack Nutrition Warning Audit (HFSS: High Fat, Sugar, Salt)</span>
+                </span>
+                <span className="text-[9px] font-mono text-slate-500">
+                  {nutritionData.has_warning ? `${nutritionData.warnings_count} Warning(s) Mandated` : 'Standard Dietary Range'}
+                </span>
+              </h2>
+
+              {/* Status Alert Banner */}
+              {nutritionData.has_warning ? (
+                <div className="bg-rose-50 border border-rose-300 p-2 rounded mb-2 text-[9.5px] text-rose-950 flex items-start space-x-2">
+                  <span className="font-bold text-rose-900 uppercase block flex-shrink-0">
+                    ⚠️ Statutory Warning Label Mandated:
+                  </span>
+                  <div>
+                    <span className="font-bold text-rose-800">
+                      {nutritionData.warnings.join(' • ')}
+                    </span>
+                    <p className="text-slate-700 mt-0.5 leading-tight">
+                      This product exceeds statutory front-of-pack thresholds under FSSAI Front-of-Pack Labelling guidelines. Front-of-pack warning symbol and red cautionary indicator must be displayed on principal display panel.
+                    </p>
+                  </div>
+                </div>
+              ) : nutritionData.indicators_list.every((i: any) => i.status === 'REVIEW') ? (
+                <div className="bg-amber-50 border border-amber-300 p-2 rounded mb-2 text-[9.5px] text-amber-950 flex items-start space-x-2">
+                  <span className="font-bold text-amber-900 uppercase block flex-shrink-0">
+                    ℹ️ Information Incomplete (Review Mandated):
+                  </span>
+                  <p className="text-slate-700 leading-tight">
+                    Nutritional declaration table not fully detected on label OCR. Front-of-pack warning status classified as REVIEW rather than estimated without back-panel nutritional verification.
+                  </p>
+                </div>
+              ) : (
+                <div className="border border-emerald-300 bg-emerald-50/70 p-2 rounded mb-2 flex items-center justify-between text-[9.5px]">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0" />
+                    <span className="font-bold text-emerald-900">Compliant Dietary Profile:</span>
+                    <span className="text-slate-700">
+                      Declared fat, sugar, and salt levels comply within statutory non-warning thresholds under FSSAI dietary guidelines.
+                    </span>
+                  </div>
+                  <span className="font-bold uppercase text-[8.5px] px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900 flex-shrink-0">
+                    NO WARNINGS
+                  </span>
+                </div>
+              )}
+
+              {/* 3 HFSS Indicators Table */}
+              <div className="border border-slate-300 rounded overflow-hidden">
+                <table className="w-full text-left text-[9.5px] border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 font-bold uppercase">
+                      <th className="py-1 px-2 w-32">Indicator</th>
+                      <th className="py-1 px-2 text-center w-28">Status / Warning</th>
+                      <th className="py-1 px-2 w-48">Declared Value & Basis</th>
+                      <th className="py-1 px-2">FSSAI Threshold & Compliance Analysis</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {nutritionData.indicators_list.map((ind: any, idx: number) => {
+                      const isHigh = ind.status === 'HIGH' || ind.warning_triggered;
+                      const isReview = ind.status === 'REVIEW';
+                      return (
+                        <tr
+                          key={idx}
+                          className={`hover:bg-slate-50 ${isHigh ? 'bg-rose-50/60 font-medium' : ''}`}
+                        >
+                          <td className="py-1.5 px-2 align-top">
+                            <span className="font-bold text-slate-900 block">{ind.name}</span>
+                            <span className="text-[8.5px] text-slate-500 block font-mono">
+                              {ind.id.replace('indicator_', 'FSSAI-FOP-')}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-2 text-center align-top">
+                            {isHigh ? (
+                              <span className="font-black text-rose-800 bg-rose-100 px-2 py-0.5 rounded text-[8.5px] uppercase block border border-rose-300 shadow-2xs">
+                                🚨 {ind.warning_title}
+                              </span>
+                            ) : isReview ? (
+                              <span className="font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[8px] uppercase block border border-amber-300">
+                                REVIEW
+                              </span>
+                            ) : (
+                              <span className="font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded text-[8px] uppercase block border border-emerald-300">
+                                MODERATE / PASS
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 align-top text-[9px]">
+                            <span className="font-bold text-slate-900 block font-mono">{ind.declared_value}</span>
+                            {ind.evidence?.text && (
+                              <span className="text-[8px] text-slate-500 italic block mt-0.5 truncate max-w-[200px]">
+                                Evidence: "{ind.evidence.text}"
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 align-top text-[8.5px] leading-tight">
+                            <span className="text-slate-500 block font-mono text-[8px] uppercase font-bold">
+                              Threshold: {ind.threshold}
+                            </span>
+                            <span className="text-slate-700 block mt-0.5">
+                              {ind.reason}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Section 5: Visual Evidence & OCR Mappings */}

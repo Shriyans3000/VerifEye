@@ -65,7 +65,7 @@ def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
     )
 
     # 4. Deterministic Compliance Evaluation
-    compliance_result = evaluate_compliance(structured_product)
+    compliance_result = evaluate_compliance(structured_product, ocr_data=combined_ocr_result)
 
     # 5. Readability & Font Metric Analysis (with safe fallback)
     try:
@@ -102,7 +102,17 @@ def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
         except Exception:
             preservative_analysis = {}
 
-    # 7. Format Complete Response
+    # 7. FSSAI Front-of-Pack Nutrition Warning Analysis (HFSS)
+    nutrition_analysis = compliance_result.get("nutrition_analysis")
+    if not nutrition_analysis:
+        try:
+            from pipeline.nutrition_analysis import analyze_nutrition  # pyrefly: ignore [missing-import] # type: ignore
+            nutrition_analysis = analyze_nutrition(structured_product, ocr_data=combined_ocr_result)
+        except Exception as nut_err:
+            logger.warning(f"Nutrition analysis fallback failed: {nut_err}")
+            nutrition_analysis = {}
+
+    # 8. Format Complete Response
     overall_status = compliance_result.get("overall_status", "REVIEW_REQUIRED")
     return {
         "success": True,
@@ -119,6 +129,7 @@ def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
         "checks": compliance_result.get("checks", []),
         "validation_checks": compliance_result.get("validation_checks", []),
         "preservative_analysis": preservative_analysis,
+        "nutrition_analysis": nutrition_analysis,
         "readability": readability_result,
         "meta": {
             "images_processed": len(resolved_paths),

@@ -86,6 +86,48 @@ export interface ValidationItem {
   evidence: EvidenceItem[];
 }
 
+export interface NutritionIndicator {
+  id: string;
+  name: string;
+  warning_title: 'HIGH FAT' | 'HIGH SUGAR' | 'HIGH SALT' | string;
+  status: 'HIGH' | 'MODERATE' | 'LOW' | 'REVIEW';
+  warning_triggered: boolean;
+  declared_value: string;
+  threshold: string;
+  reason: string;
+  evidence?: EvidenceItem | null;
+}
+
+export interface DeclaredNutrition {
+  energy_kcal?: number | null;
+  total_fat_g?: number | null;
+  saturated_fat_g?: number | null;
+  trans_fat_g?: number | null;
+  carbohydrates_g?: number | null;
+  total_sugar_g?: number | null;
+  added_sugar_g?: number | null;
+  sodium_mg?: number | null;
+  salt_g?: number | null;
+  basis?: string;
+}
+
+export interface NutritionAnalysis {
+  reference_standard?: string;
+  food_category?: string;
+  basis_unit?: string;
+  has_warning: boolean;
+  warnings: string[];
+  warnings_count: number;
+  overall_summary: string;
+  indicators: {
+    fat?: NutritionIndicator;
+    sugar?: NutritionIndicator;
+    salt?: NutritionIndicator;
+  };
+  indicators_list: NutritionIndicator[];
+  declared_nutrition?: DeclaredNutrition;
+}
+
 export interface InspectionSummary {
   total_checks: number;
   passed: number;
@@ -110,6 +152,7 @@ export interface AnalyzeResponse {
   checks: CheckItem[];
   validation_checks: ValidationItem[];
   preservative_analysis?: PreservativeAnalysis;
+  nutrition_analysis?: NutritionAnalysis;
   readability?: any;
   meta?: InspectionMeta;
 }

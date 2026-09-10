@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from pipeline.preservative_analysis import analyze_preservatives
+from pipeline.nutrition_analysis import analyze_nutrition
 
 
 def present(v):
@@ -247,7 +248,45 @@ def check_manufacturer(p):
     return result("Manufacturer / Packer / Importer", "MISSING", None, "No manufacturer/packer/importer declaration was detected on the label.", "high", ev)
 
 
-def evaluate_compliance(p: dict) -> dict:
+def validation_nutrition_hfss(p, ocr_data=None):
+    nut = analyze_nutrition(p, ocr_data=ocr_data)
+    warnings = nut.get("warnings", [])
+    ev_list = []
+    for ind in nut.get("indicators_list", []):
+        if ind.get("evidence"):
+            ev_list.append(ind["evidence"])
+
+    if nut.get("has_warning"):
+        return result(
+            "FSSAI Front-of-Pack Nutrition Warning (HFSS)",
+            "FAIL",
+            ", ".join(warnings),
+            f"Statutory Warning Threshold Exceeded: {', '.join(warnings)} detected under FSSAI front-of-pack labeling regulations.",
+            "high",
+            ev=ev_list
+        )
+    elif all(i.get("status") == "REVIEW" for i in nut.get("indicators_list", [])):
+        return result(
+            "FSSAI Front-of-Pack Nutrition Warning (HFSS)",
+            "REVIEW",
+            None,
+            "Nutritional declarations for fat, sugar, or salt not detected in OCR evidence to determine HFSS warning status.",
+            "medium",
+            ev=ev_list
+        )
+    else:
+        return result(
+            "FSSAI Front-of-Pack Nutrition Warning (HFSS)",
+            "PASS",
+            "Within Limits",
+            "Nutritional declarations comply within standard FSSAI Front-of-Pack dietary thresholds (No HFSS warnings).",
+            "none",
+            ev=ev_list
+        )
+
+
+
+def evaluate_compliance(p: dict, ocr_data: list = None) -> dict:
     checks = [
         required("Manufacturer / Packer / Importer", p.get("manufacturer"), "Manufacturer/packer/importer declaration detected.", evidence(p, "manufacturer")),
         required("Manufacturer Address", p.get("manufacturer_address"), "Manufacturer/packer/importer address detected.", evidence(p, "manufacturer_address")),
@@ -267,6 +306,7 @@ def evaluate_compliance(p: dict) -> dict:
         confidence_review(validation_mrp_usp(p)),
         confidence_review(validation_dates(p)),
         confidence_review(check_preservatives(p)),
+        confidence_review(validation_nutrition_hfss(p, ocr_data=ocr_data)),
     ]
     statuses = [c["status"] for c in checks]
 
@@ -275,6 +315,8 @@ def evaluate_compliance(p: dict) -> dict:
     failed = sum(c["status"] == "FAIL" for c in checks)
     review = sum(c["status"] in ("REVIEW", "MISSING") for c in checks)
     score = round(passed / len(checks) * 100, 1) if checks else None
+
+    nutrition_result = analyze_nutrition(p, ocr_data=ocr_data)
 
     return {
         "overall_status": overall,
@@ -286,6 +328,7 @@ def evaluate_compliance(p: dict) -> dict:
         "checks": checks,
         "validation_checks": validations,
         "preservative_analysis": analyze_preservatives(p),
+        "nutrition_analysis": nutrition_result,
         "validation_summary": {
             "passed": sum(x["status"] == "PASS" for x in validations),
             "failed": sum(x["status"] == "FAIL" for x in validations),

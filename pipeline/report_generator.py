@@ -267,6 +267,85 @@ def build_report(data, output_file):
     )
     story.append(check_table)
 
+    # FSSAI FRONT-OF-PACK NUTRITION WARNING AUDIT (HFSS: HIGH FAT, SUGAR, SALT)
+    nutrition = data.get("nutrition_analysis") or compliance.get("nutrition_analysis")
+    if not nutrition:
+        try:
+            from pipeline.nutrition_analysis import analyze_nutrition
+            nutrition = analyze_nutrition(product)
+        except Exception:
+            nutrition = None
+
+    if nutrition and isinstance(nutrition, dict):
+        story.append(Spacer(1, 12))
+        story.append(Paragraph("FSSAI FRONT-OF-PACK NUTRITION WARNING AUDIT (HFSS)", heading_style))
+
+        has_warning = nutrition.get("has_warning", False)
+        warnings = nutrition.get("warnings", [])
+        warning_str = ", ".join(warnings) if warnings else "NONE (Within Standard Limits)"
+
+        # Alert banner if warnings exist
+        if has_warning:
+            alert_style = ParagraphStyle(
+                "FOPNLAlert",
+                parent=normal_style,
+                fontName="Helvetica-Bold",
+                fontSize=9,
+                textColor=colors.HexColor("#991B1B"),
+                backColor=colors.HexColor("#FEE2E2"),
+                borderPadding=4,
+                spaceAfter=4,
+            )
+            story.append(Paragraph(
+                f"<b>⚠️ MANDATORY STATUTORY WARNING REQUIRED:</b> Package triggers Front-of-Pack Nutrition Warning label for <b>{escape_html(warning_str)}</b> under FSSAI FOPNL regulations.",
+                alert_style
+            ))
+
+        nut_indicators = nutrition.get("indicators_list", [])
+        nut_table_data = [
+            [
+                Paragraph("<b>Nutritional Indicator</b>", bold_normal_style),
+                Paragraph("<b>Status / Finding</b>", bold_normal_style),
+                Paragraph("<b>Declared Value & Basis</b>", bold_normal_style),
+                Paragraph("<b>FSSAI Threshold & Reason</b>", bold_normal_style),
+            ]
+        ]
+
+        for ind in nut_indicators:
+            ind_name = ind.get("name", "Indicator")
+            ind_status = ind.get("status", "REVIEW")
+            ind_val = safe(ind.get("declared_value"))
+            ind_thresh = ind.get("threshold", "")
+            ind_reason = ind.get("reason", "")
+            ev = ind.get("evidence")
+            ev_str = f"<br/><b>Evidence:</b> \"{escape_html(ev.get('text', ''))}\"" if (isinstance(ev, dict) and ev.get("text")) else ""
+
+            if ind_status == "HIGH":
+                badge_text = f"<font color='#B91C1C'><b>{ind.get('warning_title', 'HIGH')}</b></font>"
+            elif ind_status in ("LOW", "MODERATE"):
+                badge_text = "<font color='#047857'><b>MODERATE / PASS</b></font>"
+            else:
+                badge_text = "<font color='#B45309'><b>REVIEW</b></font>"
+
+            nut_table_data.append([
+                Paragraph(escape_html(ind_name), bold_normal_style),
+                Paragraph(badge_text, normal_style),
+                Paragraph(escape_html(ind_val), normal_style),
+                Paragraph(f"<b>Limit:</b> {escape_html(ind_thresh)}<br/>{escape_html(ind_reason)}{ev_str}", evidence_style),
+            ])
+
+        nut_table = Table(nut_table_data, colWidths=[38 * mm, 28 * mm, 48 * mm, 60 * mm], repeatRows=1)
+        nut_table.setStyle(
+            TableStyle([
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#FEF3C7") if has_warning else colors.HexColor("#EDF2F7")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ])
+        )
+        story.append(nut_table)
+
     # FONT READABILITY & LEGIBILITY ANALYSIS (RULE 9)
     readability = data.get("readability") or compliance.get("readability")
     if readability and isinstance(readability, dict):
@@ -395,7 +474,8 @@ def generate_pdf_report(
     ocr_data: list[dict] | dict,
     image_path: str | Path,
     output_pdf_path: str | Path,
-    readability_data: dict | None = None
+    readability_data: dict | None = None,
+    nutrition_data: dict | None = None
 ) -> str:
     if isinstance(ocr_data, list):
         regions_detected = len(ocr_data)
@@ -415,6 +495,7 @@ def generate_pdf_report(
             "regions_detected": regions_detected,
         },
         "readability": readability_data or compliance_data.get("readability"),
+        "nutrition_analysis": nutrition_data or compliance_data.get("nutrition_analysis"),
         "verifeye": {
             "image": str(image_path) if image_path else "Not specified",
             "version": "prototype-1.1",
