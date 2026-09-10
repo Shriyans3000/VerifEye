@@ -9,14 +9,15 @@ router = APIRouter()
 
 @router.get("/inspections")
 async def get_all_inspections(
-    limit: int = Query(20, ge=1, le=100),
-    skip: int = Query(0, ge=0)
+    limit: int = Query(50, ge=1, le=100),
+    skip: int = Query(0, ge=0),
+    q: str | None = Query(None, description="Search keyword across brand, product, manufacturer, or inspection ID")
 ):
     """
     Retrieve recent completed inspection records from MongoDB Atlas (newest first).
     """
     try:
-        records = list_inspections(limit=limit, skip=skip)
+        records = list_inspections(limit=limit, skip=skip, q=q)
         return records
     except Exception as e:
         logger.error(f"Failed to fetch inspection history: {e}")

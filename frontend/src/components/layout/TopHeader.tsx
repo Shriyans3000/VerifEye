@@ -39,6 +39,11 @@ export const TopHeader: React.FC = () => {
           title: 'Current Inspection Result',
           subtitle: 'Evidence-linked compliance audit and statutory verification details',
         };
+      case '/repository':
+        return {
+          title: 'Statutory Inspection Repository',
+          subtitle: 'Search and inspect archived brand compliance records (Haldiram, Lay\'s, etc.)',
+        };
       case '/reports':
         return {
           title: 'Inspection Reports Workspace',

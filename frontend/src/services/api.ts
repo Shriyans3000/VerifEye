@@ -72,10 +72,18 @@ export const analyzePackageLabel = async (files: File | File[]): Promise<Analyze
   }
 };
 
-export const fetchInspections = async (limit: number = 20, skip: number = 0): Promise<AnalyzeResponse[]> => {
+export const fetchInspections = async (
+  limit: number = 50,
+  skip: number = 0,
+  q?: string
+): Promise<AnalyzeResponse[]> => {
   try {
+    const params: Record<string, any> = { limit, skip };
+    if (q && q.trim()) {
+      params.q = q.trim();
+    }
     const response = await client.get<AnalyzeResponse[]>('/inspections', {
-      params: { limit, skip }
+      params,
     });
     return response.data || [];
   } catch (error) {

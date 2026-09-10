@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   FileCheck,
+  Database,
   FileText,
   BookOpen,
   FlaskConical,
@@ -34,6 +35,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { to: '/', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4 mr-3" /> },
     { to: '/inspection', label: 'New Inspection', icon: <FileCheck className="h-4 w-4 mr-3" /> },
+    { to: '/repository', label: 'Repository', icon: <Database className="h-4 w-4 mr-3 text-amber-400" /> },
     { to: '/reports', label: 'Reports', icon: <FileText className="h-4 w-4 mr-3" /> },
     { to: '/guidelines', label: 'Guidelines', icon: <BookOpen className="h-4 w-4 mr-3" /> },
     { to: '/preservatives', label: 'Preservatives Codex', icon: <FlaskConical className="h-4 w-4 mr-3 text-amber-400" /> },

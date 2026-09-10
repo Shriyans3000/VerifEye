@@ -13,6 +13,7 @@ import {
   XCircle,
   Clock,
   ExternalLink,
+  Database,
 } from 'lucide-react';
 import { useInspection } from '../context/InspectionContext';
 import { checkHealth } from '../services/api';
@@ -122,7 +123,7 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 space-y-2">
             <button
               type="button"
               onClick={() => navigate('/inspection')}
@@ -130,6 +131,14 @@ export const DashboardPage: React.FC = () => {
             >
               <span>START INSPECTION</span>
               <ArrowRight className="h-4 w-4 text-amber-400" />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/repository')}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-md text-xs uppercase tracking-wider flex items-center justify-center space-x-2 border border-slate-300 transition cursor-pointer"
+            >
+              <Database className="h-3.5 w-3.5 text-amber-600" />
+              <span>INSPECTION REPOSITORY</span>
             </button>
           </div>
         </div>
