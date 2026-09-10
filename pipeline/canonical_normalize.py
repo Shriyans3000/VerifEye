@@ -352,5 +352,8 @@ def canonical_normalize_product(structured_product: dict, ocr_data: list[dict] =
     if not canonical["consumer_care"].get("email") and canonical_ev.get("consumer_care_email"):
         canonical["consumer_care"]["email"] = canonical_ev["consumer_care_email"]["text"]
 
+    if "nutrition" in structured_product:
+        canonical["nutrition"] = structured_product.get("nutrition")
+
     canonical["evidence"] = canonical_ev
     return canonical

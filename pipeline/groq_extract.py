@@ -41,6 +41,19 @@ Return ONLY valid JSON matching this schema:
   "food_category": null,
   "ingredients": null,
   "preservatives": [],
+  "nutrition": {
+    "serving_size": null,
+    "basis_g": null,
+    "energy_kcal": null,
+    "total_fat_g": null,
+    "saturated_fat_g": null,
+    "trans_fat_g": null,
+    "carbohydrates_g": null,
+    "total_sugar_g": null,
+    "added_sugar_g": null,
+    "sodium_mg": null,
+    "salt_g": null
+  },
   "evidence": {
     "product_name": null,
     "manufacturer": null,
@@ -86,6 +99,7 @@ and BEST BEFORE/BBE as best_before.
 16. Do not calculate dates or normalize their format.
 17. If OCR does not support a field, return null for that field and its evidence.
 18. For every non-null field extracted, you MUST include its supporting evidence object in the evidence dictionary (with ocr_id, image_index, text, confidence, bbox).
+19. Extract nutritional metrics into "nutrition" if present on the label. Never invent nutrition values.
 """
 
 
@@ -305,6 +319,17 @@ NORMALIZATION HINTS:
                 if "ingredient" in t.lower():
                     fallback_data["ingredients"] = t
                     break
+        if ocr_data:
+            try:
+                from pipeline.nutrition_analysis import extract_nutrition_from_ocr
+                nut_raw, _, nut_ev = extract_nutrition_from_ocr(ocr_data)
+                if any(v is not None for k, v in nut_raw.items() if k not in ["basis_value", "basis_text", "scale_factor"]):
+                    fallback_data["nutrition"] = nut_raw
+                    for ek, ev_val in nut_ev.items():
+                        if ek not in fallback_data["evidence"]:
+                            fallback_data["evidence"][ek] = ev_val
+            except Exception:
+                pass
         result = canonical_normalize_product(fallback_data, ocr_data)
         _EXTRACTION_CACHE[cache_key] = copy.deepcopy(result)
         return result
