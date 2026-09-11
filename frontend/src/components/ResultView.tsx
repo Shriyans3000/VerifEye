@@ -216,13 +216,35 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
           </div>
         </div>
 
-        {/* Summary Numbers & Report Button */}
+        {/* Summary Numbers with Animated SVG Score Gauge Ring & Report Button */}
         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 w-full md:w-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto text-center">
-            <div className="bg-white/80 border border-slate-300 rounded px-3 py-1.5 shadow-2xs">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Score</span>
-              <span className="text-lg font-black text-slate-900">{compliance_score}%</span>
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 w-full sm:w-auto text-center items-center">
+            {/* Animated Dynamic Circular Gauge Ring */}
+            <div className="bg-white/90 border border-slate-300 rounded px-3 py-1.5 shadow-2xs flex items-center space-x-2">
+              <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
+                <svg className="w-9 h-9 transform -rotate-90">
+                  <circle cx="18" cy="18" r="14" stroke="currentColor" strokeWidth="3" className="text-slate-200" fill="transparent" />
+                  <circle 
+                    cx="18" cy="18" r="14" 
+                    stroke="currentColor" 
+                    strokeWidth="3.5" 
+                    className={`score-circle-ring ${compliance_score >= 80 ? 'text-emerald-600' : compliance_score >= 50 ? 'text-amber-500' : 'text-rose-600'}`} 
+                    fill="transparent" 
+                    strokeDasharray={88}
+                    strokeDashoffset={88 - (88 * (compliance_score || 0)) / 100}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute text-[10px] font-black text-slate-900 font-mono">
+                  {compliance_score}
+                </span>
+              </div>
+              <div className="text-left">
+                <span className="text-[9px] uppercase font-bold text-slate-400 block leading-none">Score</span>
+                <span className="text-xs font-black text-slate-900 font-mono">{compliance_score}%</span>
+              </div>
             </div>
+
             <div className="bg-white/80 border border-slate-300 rounded px-3 py-1.5 shadow-2xs">
               <span className="text-[10px] uppercase font-bold text-slate-500 block">Passed</span>
               <span className="text-lg font-black text-emerald-700">{summary?.passed ?? 0}</span>
@@ -306,6 +328,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
       {/* Prominent Evidence-Linked Inspection Viewer */}
       <EvidenceViewer
         imageFile={imageFile}
+        imageUrl={data.image_urls && data.image_urls.length > 0 ? data.image_urls[0] : undefined}
         selectedCheck={selectedCheck}
         selectedCheckIndex={selectedCheckIndex}
         allChecks={checks}
@@ -956,11 +979,12 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
                           handleSelectCheck(index, true);
                         }
                       }}
-                      className={`transition-colors cursor-pointer select-none outline-none focus:ring-2 focus:ring-amber-500 focus:z-10 ${
+                      className={`transition-all duration-200 cursor-pointer select-none outline-hidden focus:ring-2 focus:ring-amber-500 focus:z-10 animate-fade-in ${
                         isSelected
-                          ? 'bg-amber-100/70 border-l-4 border-amber-600 font-semibold'
+                          ? 'bg-amber-100/80 border-l-4 border-amber-600 font-semibold shadow-2xs'
                           : 'hover:bg-slate-50 border-l-4 border-transparent'
                       }`}
+                      style={{ animationDelay: `${index * 45}ms` }}
                       title="Click to view linked visual evidence on the package label"
                     >
                       <td className="py-3 px-4 font-mono text-slate-400 font-medium">

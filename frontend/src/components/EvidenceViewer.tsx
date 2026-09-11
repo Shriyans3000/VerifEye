@@ -6,6 +6,7 @@ import { EvidencePanel } from './EvidencePanel';
 
 interface EvidenceViewerProps {
   imageFile?: File | null;
+  imageUrl?: string | null;
   selectedCheck: CheckItem | null;
   selectedCheckIndex: number | null;
   allChecks: CheckItem[];
@@ -16,6 +17,7 @@ interface EvidenceViewerProps {
 
 export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
   imageFile,
+  imageUrl,
   selectedCheck,
   selectedCheckIndex,
   allChecks,
@@ -33,15 +35,15 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Local object URL for the uploaded file with cleanup
+  // Local object URL for the uploaded file with cleanup or persisted MongoDB imageUrl
   const imageSrc = useMemo(() => {
-    if (!imageFile) return null;
-    return URL.createObjectURL(imageFile);
-  }, [imageFile]);
+    if (imageFile && imageFile.size > 0) return URL.createObjectURL(imageFile);
+    return imageUrl || null;
+  }, [imageFile, imageUrl]);
 
   useEffect(() => {
     return () => {
-      if (imageSrc) {
+      if (imageSrc && imageSrc.startsWith('blob:')) {
         URL.revokeObjectURL(imageSrc);
       }
     };

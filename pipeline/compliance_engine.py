@@ -285,7 +285,6 @@ def validation_nutrition_hfss(p, ocr_data=None):
         )
 
 
-
 def evaluate_compliance(p: dict, ocr_data: list = None) -> dict:
     checks = [
         required("Manufacturer / Packer / Importer", p.get("manufacturer"), "Manufacturer/packer/importer declaration detected.", evidence(p, "manufacturer")),

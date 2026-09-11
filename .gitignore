@@ -32,3 +32,4 @@ node_modules/
 dist/
 .pytest_cache/
 scratch_real_resp.json
+frontend/node_modules

@@ -77,6 +77,33 @@ class TestMongoDBPersistence(unittest.TestCase):
         response = self.client.get("/api/inspections/insp_nonexistent_999999")
         self.assertEqual(response.status_code, 404)
 
+    def test_05_save_and_stream_image(self):
+        """Verify saving image to GridFS and streaming via /api/images/{file_id}."""
+        from backend.database import save_image_to_gridfs, get_image_from_gridfs
+        dummy_png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4"
+        file_id = save_image_to_gridfs(dummy_png, filename="dummy.png", content_type="image/png")
+        self.assertTrue(file_id)
+
+        # Verify direct db retrieval
+        retrieved = get_image_from_gridfs(file_id)
+        self.assertIsNotNone(retrieved)
+        img_bytes, filename, content_type = retrieved
+        self.assertEqual(img_bytes, dummy_png)
+        self.assertEqual(filename, "dummy.png")
+
+        # Verify API streaming endpoint
+        res = self.client.get(f"/api/images/{file_id}")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content, dummy_png)
+        self.assertIn("image/png", res.headers.get("content-type", ""))
+
+        # Verify inspection saved with image references
+        saved = save_inspection(self.sample_analysis, filename="pkg_with_img.png", image_file_ids=[file_id])
+        self.assertIn("image_file_ids", saved)
+        self.assertIn(file_id, saved["image_file_ids"])
+        self.assertIn("image_urls", saved)
+        self.assertEqual(saved["image_urls"], [f"/api/images/{file_id}"])
+
 
 if __name__ == "__main__":
     unittest.main()

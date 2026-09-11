@@ -101,24 +101,94 @@ export const AboutPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Interactive Animated AI Data-Flow Pipeline Diagram */}
+      <div className="bg-slate-950 text-white rounded-xl border border-slate-800 p-6 shadow-xl space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center space-x-2">
+            <Cpu className="h-5 w-5 text-amber-400 animate-spin" style={{ animationDuration: '8s' }} />
+            <span className="font-bold text-sm uppercase tracking-wider text-amber-400">
+              Live AI &amp; Rule Engine Data-Flow Stream
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-700/60 px-2.5 py-1 rounded-full flex items-center space-x-1.5 shadow-2xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>REAL-TIME STREAMING</span>
+          </span>
+        </div>
+
+        {/* Animated Visual Flow Nodes */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 relative py-2">
+          {/* Node 1 */}
+          <div className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 p-3.5 rounded-lg text-center space-y-1.5 transition-all duration-300 card-hover-effect group">
+            <div className="h-9 w-9 mx-auto bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform">
+              📸
+            </div>
+            <strong className="text-xs text-white block">Label Photo</strong>
+            <span className="text-[10px] font-mono text-slate-400 block">JPEG/PNG Upload</span>
+          </div>
+
+          {/* Node 2 */}
+          <div className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 p-3.5 rounded-lg text-center space-y-1.5 transition-all duration-300 card-hover-effect group">
+            <div className="h-9 w-9 mx-auto bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform">
+              ⚡
+            </div>
+            <strong className="text-xs text-white block">PaddleOCR GPU</strong>
+            <span className="text-[10px] font-mono text-sky-400 block">Bounding Boxes</span>
+          </div>
+
+          {/* Node 3 */}
+          <div className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 p-3.5 rounded-lg text-center space-y-1.5 transition-all duration-300 card-hover-effect group">
+            <div className="h-9 w-9 mx-auto bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform">
+              🧠
+            </div>
+            <strong className="text-xs text-white block">Groq LLaMA 3.3</strong>
+            <span className="text-[10px] font-mono text-purple-300 block">JSON Extraction</span>
+          </div>
+
+          {/* Node 4 */}
+          <div className="bg-slate-900 border border-slate-800 hover:border-emerald-500/60 p-3.5 rounded-lg text-center space-y-1.5 transition-all duration-300 card-hover-effect group">
+            <div className="h-9 w-9 mx-auto bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform">
+              ⚖️
+            </div>
+            <strong className="text-xs text-white block">Rule Engine</strong>
+            <span className="text-[10px] font-mono text-emerald-400 block">Deterministic Rules</span>
+          </div>
+
+          {/* Node 5 */}
+          <div className="bg-slate-900 border border-slate-800 hover:border-amber-500/60 p-3.5 rounded-lg text-center space-y-1.5 transition-all duration-300 card-hover-effect group">
+            <div className="h-9 w-9 mx-auto bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform">
+              📋
+            </div>
+            <strong className="text-xs text-white block">Statutory Notice</strong>
+            <span className="text-[10px] font-mono text-amber-400 block">2-Page PDF Export</span>
+          </div>
+        </div>
+
+        <div className="text-center text-[11px] text-slate-400 pt-1 font-mono flex items-center justify-center space-x-2">
+          <span>Pipeline execution latency: ~1.2 seconds</span>
+          <span>•</span>
+          <span className="text-amber-400 font-bold">100% Traceable Evidence Mapping</span>
+        </div>
+      </div>
+
       {/* Sequential Pipeline Workflow */}
       <div className="bg-white rounded-lg border border-slate-300 shadow-xs p-6 space-y-4">
         <h3 className="text-base font-bold text-slate-900 border-b border-slate-200 pb-2 flex items-center space-x-2">
-          <Cpu className="h-4 w-4 text-amber-600" />
+          <Cpu className="h-4 w-4 text-amber-600 animate-pulse" />
           <span>End-to-End Inspection Pipeline</span>
         </h3>
 
         <div className="space-y-3">
           {pipelineSteps.map((item, idx) => (
-            <div key={item.step}>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:bg-slate-100/60 transition">
+            <div key={item.step} className="animate-fade-in" style={{ animationDelay: `${idx * 60}ms` }}>
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 card-hover-effect hover:bg-slate-100/90 hover:border-amber-400/40">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <span className="h-6 w-6 rounded-full bg-slate-900 text-amber-400 font-bold font-mono text-xs flex items-center justify-center">
+                    <span className="h-6 w-6 rounded-full bg-slate-900 text-amber-400 font-bold font-mono text-xs flex items-center justify-center shadow-xs">
                       {item.step}
                     </span>
                     <h4 className="font-bold text-slate-900 text-sm">{item.title}</h4>
-                    <span className="text-[10px] font-mono bg-white border border-slate-300 text-slate-600 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-mono bg-white border border-slate-300 text-slate-600 px-2 py-0.5 rounded shadow-2xs">
                       {item.role}
                     </span>
                   </div>
@@ -128,14 +198,14 @@ export const AboutPage: React.FC = () => {
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <span className="text-[10px] font-mono text-slate-500 bg-slate-200/70 px-2.5 py-1 rounded block">
+                  <span className="text-[10px] font-mono text-slate-600 bg-slate-200/80 px-2.5 py-1 rounded block border border-slate-300/50 shadow-2xs">
                     {item.tech}
                   </span>
                 </div>
               </div>
 
               {idx < pipelineSteps.length - 1 && (
-                <div className="flex justify-center my-1.5 text-slate-400">
+                <div className="flex justify-center my-1.5 text-slate-400 animate-float">
                   <ArrowDown className="h-4 w-4" />
                 </div>
               )}

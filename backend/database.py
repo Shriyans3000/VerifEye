@@ -1,7 +1,12 @@
 import logging
 import uuid
+import base64  # ADD
+import re
 from datetime import datetime
+from typing import Any  # ADD
 from pymongo import MongoClient, errors  # pyrefly: ignore [missing-import] # type: ignore
+import gridfs  # pyrefly: ignore [missing-import] # type: ignore  # ADD
+from bson import ObjectId  # pyrefly: ignore [missing-import] # type: ignore  # ADD
 from backend.config import MONGODB_URI, MONGODB_DB_NAME
 
 logger = logging.getLogger("verifeye.database")
@@ -350,6 +355,18 @@ except Exception as _nut_init_err:
 _in_memory_db: dict[str, dict] = {
     doc["inspection_id"]: dict(doc) for doc in DEFAULT_SEED_INSPECTIONS
 }
+_in_memory_directories: dict[str, list[dict]] = {
+    repo["brand_name"]: [] for repo in DEFAULT_BRAND_REPOSITORIES
+}
+for _seed_doc in DEFAULT_SEED_INSPECTIONS:
+    _brand_name = (_seed_doc.get("product") or {}).get("brand")
+    if _brand_name:
+        for _repo_dir in list(_in_memory_directories.keys()):
+            if _repo_dir.lower() in _brand_name.lower() or _brand_name.lower() in _repo_dir.lower():
+                _in_memory_directories[_repo_dir].append(dict(_seed_doc))
+                break
+_in_memory_images: dict[str, tuple[bytes, str, str]] = {}  # ADD: file_id -> (bytes, filename, content_type)
+
 
 
 def get_db_client():
@@ -360,7 +377,7 @@ def get_db_client():
     if _client is None:
         candidate_client = None
         try:
-            client_kwargs = {
+            client_kwargs: dict[str, Any] = {  # FIX — Any (not object) is assignable to Mongo's varied kwarg types
                 "serverSelectionTimeoutMS": 2500,
                 "connectTimeoutMS": 2500,
             }
@@ -387,30 +404,28 @@ def get_db_client():
 
 
 def get_inspections_collection():
-    global _db_available
-    if not _db_available:
+    client = get_db_client()
+    if client is None:
         return None
+
+    db = client[MONGODB_DB_NAME or "verifeye"]
+    collection = db["inspections"]
     try:
-        client = get_db_client()
-        if client is None:
-            _db_available = False
-            return None
-
-        db = client[MONGODB_DB_NAME or "verifeye"]
-        collection = db["inspections"]
-        return collection
+        collection.create_index("inspection_id", unique=True)
+        collection.create_index([("timestamp", -1)])
     except Exception as e:
-        _db_available = False
-        logger.warning(f"Could not initialize MongoDB collection ({e}). Falling back to fast in-memory store.")
-        return None
+        logger.warning(f"Could not create collection indexes: {e}")
+    return collection
 
 
-def save_inspection(analysis_result: dict, filename: str = "") -> dict:
+def save_inspection(analysis_result: dict, filename: str = "", image_file_ids: list[str] | None = None) -> dict:
     """
     Persists a completed inspection analysis to MongoDB Atlas (or in-memory store if MONGODB_URI is unconfigured).
     """
     inspection_id = analysis_result.get("inspection_id") or f"insp_{uuid.uuid4().hex[:12]}"
     timestamp = analysis_result.get("meta", {}).get("timestamp") or datetime.utcnow().isoformat()
+    file_ids = image_file_ids if image_file_ids is not None else (analysis_result.get("image_file_ids") or [])
+    image_urls = analysis_result.get("image_urls") or [f"/api/images/{fid}" for fid in file_ids]
 
     doc = {
         "inspection_id": inspection_id,
@@ -425,6 +440,8 @@ def save_inspection(analysis_result: dict, filename: str = "") -> dict:
         "preservative_analysis": analysis_result.get("preservative_analysis") or {},
         "nutrition_analysis": analysis_result.get("nutrition_analysis") or {},
         "readability": analysis_result.get("readability") or {},
+        "image_file_ids": file_ids,
+        "image_urls": image_urls,
         "meta": analysis_result.get("meta", {}),
         "created_at": datetime.utcnow().isoformat()
     }
@@ -520,6 +537,7 @@ def list_inspections(limit: int = 50, skip: int = 0, q: str | None = None) -> li
         return sorted_records[skip : skip + limit]
 
 
+
 def get_inspection_by_id(inspection_id: str) -> dict | None:
     """
     Retrieves a single inspection record by unique inspection_id.
@@ -539,17 +557,26 @@ def get_inspection_by_id(inspection_id: str) -> dict | None:
 
 def _get_inspections_for_repo(repo: dict) -> list[dict]:
     """
-    Finds all inspection records associated with a given brand repository.
+    Finds all inspection records associated with a given brand repository across
+    in-memory database, memory directories, MongoDB inspections, and MongoDB brand collections.
     """
-    all_inspections = list(_in_memory_db.values())
     repo_id = repo.get("repository_id", "")
-    brand_lower = repo.get("brand_name", "").lower().strip()
+    brand_name = repo.get("brand_name", "").strip()
+    brand_lower = brand_name.lower()
 
-    matches = []
-    for insp in all_inspections:
-        # Check direct repository_id link
+    matches_map: dict[str, dict] = {}
+
+    def _add_match(item: dict):
+        if not isinstance(item, dict):
+            return
+        key = item.get("inspection_id") or item.get("report_id") or str(id(item))
+        if key not in matches_map:
+            matches_map[key] = item
+
+    # 1. Check in-memory inspections
+    for insp in _in_memory_db.values():
         if insp.get("repository_id") == repo_id:
-            matches.append(insp)
+            _add_match(insp)
             continue
 
         prod = insp.get("product") or {}
@@ -557,15 +584,44 @@ def _get_inspections_for_repo(repo: dict) -> list[dict]:
         insp_prod_name = (prod.get("product_name") or "").lower()
         insp_mfg = (prod.get("manufacturer") or "").lower()
 
-        # Check brand match or keyword presence
         if (
             (brand_lower and brand_lower in insp_brand)
             or (brand_lower and brand_lower in insp_prod_name)
             or (brand_lower and brand_lower in insp_mfg)
         ):
-            matches.append(insp)
+            _add_match(insp)
 
-    matches.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+    # 2. Check in-memory directories for this brand
+    for dir_doc in _in_memory_directories.get(brand_name, []):
+        _add_match(dir_doc)
+
+    # 3. Check MongoDB if connected
+    client = get_db_client()
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            # Query inspections collection by repository_id or brand
+            insp_col = db["inspections"]
+            regex_pat = {"$regex": re.escape(brand_name), "$options": "i"} if brand_name else None
+            q_or: list[dict] = [{"repository_id": repo_id}]
+            if regex_pat:
+                q_or.extend([
+                    {"product.brand": regex_pat},
+                    {"product.manufacturer": regex_pat},
+                    {"product.product_name": regex_pat}
+                ])
+            for doc in insp_col.find({"$or": q_or}, {"_id": 0, "created_at": 0}):
+                _add_match(doc)
+
+            # Query folder collection for brand if it exists
+            if brand_name in db.list_collection_names():
+                for doc in db[brand_name].find({}, {"_id": 0, "created_at": 0}):
+                    _add_match(doc)
+        except Exception as e:
+            logger.error(f"Error querying inspections for repo '{brand_name}' from MongoDB: {e}")
+
+    matches = list(matches_map.values())
+    matches.sort(key=lambda x: x.get("timestamp") or x.get("created_at") or "", reverse=True)
     return matches
 
 
@@ -574,7 +630,22 @@ def list_brand_repositories(q: str | None = None) -> list[dict]:
     Lists all registered Brand Repositories with dynamically computed compliance metrics.
     """
     clean_q = (q or "").strip().lower()
-    repos_list = list(_in_memory_repos.values())
+
+    # Merge repos from memory and MongoDB brand_repositories collection
+    all_repos_map = dict(_in_memory_repos)
+    client = get_db_client()
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            if "brand_repositories" in db.list_collection_names():
+                for r in db["brand_repositories"].find({}, {"_id": 0}):
+                    rid = r.get("repository_id")
+                    if rid and rid not in all_repos_map:
+                        all_repos_map[rid] = r
+        except Exception as e:
+            logger.error(f"Error reading brand_repositories from MongoDB: {e}")
+
+    repos_list = list(all_repos_map.values())
 
     enriched_repos = []
     for repo in repos_list:
@@ -584,7 +655,7 @@ def list_brand_repositories(q: str | None = None) -> list[dict]:
         review = sum(1 for i in inspections if (i.get("status") or "").upper() in ("REVIEW", "REVIEW_REQUIRED"))
         failed = sum(1 for i in inspections if (i.get("status") or "").upper() in ("FAIL", "NON_COMPLIANT"))
         avg_score = round(sum(float(i.get("compliance_score", 0)) for i in inspections) / total, 1) if total > 0 else 100.0
-        latest_date = inspections[0].get("timestamp") if inspections else repo.get("created_at")
+        latest_date = inspections[0].get("timestamp") or inspections[0].get("created_at") if inspections else repo.get("created_at")
         recent_products = [
             (i.get("product") or {}).get("product_name") or i.get("filename")
             for i in inspections[:3]
@@ -626,11 +697,28 @@ def get_brand_repository(repo_id: str) -> dict | None:
     """
     repo = _in_memory_repos.get(repo_id)
     if not repo:
-        # Search by brand_name or slug
+        # Search by brand_name or slug in memory
         for r in _in_memory_repos.values():
             if r.get("brand_name", "").lower() == repo_id.lower():
                 repo = r
                 break
+
+    # If still not found, search MongoDB brand_repositories collection
+    if not repo:
+        client = get_db_client()
+        if client is not None:
+            try:
+                db = client[MONGODB_DB_NAME or "verifeye"]
+                if "brand_repositories" in db.list_collection_names():
+                    found = db["brand_repositories"].find_one(
+                        {"$or": [{"repository_id": repo_id}, {"brand_name": {"$regex": f"^{re.escape(repo_id)}$", "$options": "i"}}]},
+                        {"_id": 0}
+                    )
+                    if found:
+                        repo = found
+            except Exception as e:
+                logger.error(f"Error querying brand_repository from MongoDB: {e}")
+
     if not repo:
         return None
 
@@ -655,7 +743,8 @@ def get_brand_repository(repo_id: str) -> dict | None:
 
 def create_brand_repository(repo_data: dict) -> dict:
     """
-    Registers a new Brand Repository dossier into the surveillance database.
+    Registers a new Brand Repository dossier into the surveillance database
+    and automatically creates its folder in MongoDB Atlas and in-memory store.
     """
     raw_name = repo_data.get("brand_name", "").strip()
     if not raw_name:
@@ -678,6 +767,27 @@ def create_brand_repository(repo_data: dict) -> dict:
     }
 
     _in_memory_repos[repo_id] = new_repo
+    _in_memory_directories.setdefault(raw_name, [])
+
+    # Automatically persist dossier and create folder in MongoDB Atlas
+    client = get_db_client()
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            # 1. Upsert brand dossier
+            db["brand_repositories"].update_one(
+                {"repository_id": repo_id},
+                {"$set": dict(new_repo)},
+                upsert=True
+            )
+            # 2. Automatically create the directory folder in MongoDB
+            if raw_name not in db.list_collection_names():
+                try:
+                    db.create_collection(raw_name)
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"Error persisting brand repository '{raw_name}' to MongoDB: {e}")
 
     # Check if initial product or inspection was provided
     initial_product = repo_data.get("initial_product")
@@ -717,13 +827,15 @@ def create_brand_repository(repo_data: dict) -> dict:
             }
         }
         _in_memory_db[insp_id] = initial_insp
+        save_report_to_directory(raw_name, initial_insp)
 
     return get_brand_repository(repo_id) or new_repo
 
 
 def link_inspection_to_repository(repository_id: str, inspection_data: dict) -> dict:
     """
-    Associates an active or historical inspection record with a specific brand repository.
+    Associates an active or historical inspection record with a specific brand repository,
+    and automatically stores it into that repository's folder in MongoDB.
     """
     repo = _in_memory_repos.get(repository_id)
     if not repo:
@@ -733,6 +845,24 @@ def link_inspection_to_repository(repository_id: str, inspection_data: dict) -> 
                 repo = r
                 repository_id = r.get("repository_id")
                 break
+
+    if not repo:
+        # Search in MongoDB
+        client = get_db_client()
+        if client is not None:
+            try:
+                db = client[MONGODB_DB_NAME or "verifeye"]
+                if "brand_repositories" in db.list_collection_names():
+                    found = db["brand_repositories"].find_one(
+                        {"$or": [{"repository_id": repository_id}, {"brand_name": {"$regex": f"^{re.escape(repository_id)}$", "$options": "i"}}]},
+                        {"_id": 0}
+                    )
+                    if found:
+                        repo = found
+                        repository_id = found.get("repository_id")
+            except Exception as e:
+                logger.error(f"Error querying brand repo in link_inspection: {e}")
+
     if not repo:
         raise ValueError(f"Brand repository '{repository_id}' does not exist.")
 
@@ -764,17 +894,21 @@ def link_inspection_to_repository(repository_id: str, inspection_data: dict) -> 
         _in_memory_db[inspection_id] = inspection_data
         target_doc = inspection_data
 
-    # Synchronize MongoDB if connected
+    # Synchronize MongoDB collections if connected
     collection = get_inspections_collection()
     if collection is not None:
         try:
             collection.update_one(
                 {"inspection_id": inspection_id},
-                {"$set": {"repository_id": repository_id}},
+                {"$set": {"repository_id": repository_id, "product.brand": repo.get("brand_name")}},
                 upsert=True
             )
         except Exception as e:
             logger.error(f"Error updating repository_id in MongoDB: {e}")
+
+    # Automatically save into this brand's repository folder in MongoDB
+    folder_name = repo.get("brand_name") or repository_id
+    save_report_to_directory(folder_name, target_doc)
 
     return {
         "success": True,
@@ -785,3 +919,228 @@ def link_inspection_to_repository(repository_id: str, inspection_data: dict) -> 
     }
 
 
+def list_directories() -> list[str]:
+    """
+    Lists existing 'directories' (MongoDB collections and registered Brand Repositories)
+    a report can be saved into.
+    """
+    all_dirs: set[str] = set()
+
+    # Always include all registered repository brand names from memory
+    for repo in _in_memory_repos.values():
+        if repo.get("brand_name"):
+            all_dirs.add(repo["brand_name"])
+
+    # Include all in-memory directory keys
+    for d in _in_memory_directories.keys():
+        if d:
+            all_dirs.add(d)
+
+    client = get_db_client()
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            system_cols = {"inspections", "system.indexes", "fs.files", "fs.chunks", "brand_repositories", "report_directories"}
+            mongo_cols = [n for n in db.list_collection_names() if n not in system_cols and not n.startswith("fs.")]
+            all_dirs.update(mongo_cols)
+
+            # Also include brands from brand_repositories collection in Mongo
+            if "brand_repositories" in db.list_collection_names():
+                for r in db["brand_repositories"].find({}, {"brand_name": 1}):
+                    if r.get("brand_name"):
+                        all_dirs.add(r["brand_name"])
+        except Exception as e:
+            logger.error(f"Error listing directories from MongoDB: {e}")
+
+    return sorted(list(all_dirs))
+
+
+def save_report_to_directory(directory: str, doc: dict) -> dict:
+    """
+    Saves a report document into the named directory (MongoDB collection),
+    creating that directory (collection) if it doesn't already exist.
+    Also links the report to the corresponding brand repository if matched.
+    """
+    doc = dict(doc)
+    doc.setdefault("created_at", datetime.utcnow().isoformat())
+
+    # Link to repository if directory name matches a brand
+    for r_id, r_info in _in_memory_repos.items():
+        if (
+            r_info.get("brand_name", "").strip().lower() == directory.strip().lower()
+            or r_id.strip().lower() == directory.strip().lower()
+        ):
+            doc["repository_id"] = r_info.get("repository_id")
+            if "product" in doc and isinstance(doc["product"], dict) and not doc["product"].get("brand"):
+                doc["product"]["brand"] = r_info.get("brand_name")
+            break
+
+    try:
+        client = get_db_client()
+        if client is not None:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            db[directory].insert_one(dict(doc))
+            doc.pop("_id", None)
+            # Ensure in-memory cache has this directory too
+            _in_memory_directories.setdefault(directory, []).append(doc)
+            return doc
+    except Exception as e:
+        logger.error(f"Error saving report to directory '{directory}': {e}")
+
+    _in_memory_directories.setdefault(directory, []).append(doc)
+    return doc
+# ADD — end
+
+
+# ADD — start
+def save_report_with_file_to_directory(directory: str, doc: dict, pdf_bytes: bytes, pdf_filename: str) -> dict:
+    """
+    Saves a report document plus its PDF file into the named directory (collection).
+    The PDF is stored via GridFS and referenced by id on the doc; falls back to an
+    in-memory base64 copy if MongoDB is unavailable.
+    Also links to brand repository if directory matches brand name.
+    """
+    doc = dict(doc)
+    doc.setdefault("created_at", datetime.utcnow().isoformat())
+    doc["pdf_filename"] = pdf_filename
+
+    # Link to repository if directory name matches a brand
+    for r_id, r_info in _in_memory_repos.items():
+        if (
+            r_info.get("brand_name", "").strip().lower() == directory.strip().lower()
+            or r_id.strip().lower() == directory.strip().lower()
+        ):
+            doc["repository_id"] = r_info.get("repository_id")
+            if "product" in doc and isinstance(doc["product"], dict) and not doc["product"].get("brand"):
+                doc["product"]["brand"] = r_info.get("brand_name")
+            break
+
+    try:
+        client = get_db_client()
+        if client is not None:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            fs = gridfs.GridFS(db)
+            file_id = fs.put(pdf_bytes, filename=pdf_filename, content_type="application/pdf")
+            doc["pdf_file_id"] = str(file_id)
+            db[directory].insert_one(dict(doc))
+            doc.pop("_id", None)
+            _in_memory_directories.setdefault(directory, []).append(doc)
+            return doc
+    except Exception as e:
+        logger.error(f"Error saving report with file to directory '{directory}': {e}")
+
+    doc["pdf_base64"] = base64.b64encode(pdf_bytes).decode("ascii")
+    _in_memory_directories.setdefault(directory, []).append(doc)
+    return doc
+# ADD — end
+
+
+# ADD — start
+def get_pdf_from_gridfs(file_id: str) -> tuple[bytes, str] | None:
+    """
+    Retrieves a saved report PDF's bytes and filename from GridFS by its file id.
+    """
+    client = get_db_client()
+    if client is None:
+        return None
+    try:
+        db = client[MONGODB_DB_NAME or "verifeye"]
+        fs = gridfs.GridFS(db)
+        grid_out = fs.get(ObjectId(file_id))
+        return grid_out.read(), grid_out.filename or "report.pdf"
+    except Exception as e:
+        logger.error(f"Error retrieving PDF '{file_id}' from GridFS: {e}")
+        return None
+# ADD — end
+
+
+# ADD — start
+def save_image_to_gridfs(image_bytes: bytes, filename: str = "label.png", content_type: str = "image/png") -> str:
+    """
+    Saves an uploaded package image into MongoDB GridFS (or in-memory cache if Mongo is unavailable),
+    returning the string file_id.
+    """
+    client = get_db_client()
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            fs = gridfs.GridFS(db)
+            file_id = fs.put(image_bytes, filename=filename, content_type=content_type)
+            return str(file_id)
+        except Exception as e:
+            logger.error(f"Error storing image '{filename}' in GridFS: {e}")
+
+    file_id = f"img_{uuid.uuid4().hex[:12]}"
+    _in_memory_images[file_id] = (image_bytes, filename, content_type)
+    return file_id
+
+
+def get_image_from_gridfs(file_id: str) -> tuple[bytes, str, str] | None:
+    """
+    Retrieves an image's bytes, filename, and content_type by file_id from GridFS or in-memory store.
+    """
+    if file_id in _in_memory_images:
+        return _in_memory_images[file_id]
+
+    client = get_db_client()
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            fs = gridfs.GridFS(db)
+            grid_out = fs.get(ObjectId(file_id))
+            img_bytes = grid_out.read()
+            filename = grid_out.filename or "package_label.png"
+            content_type = getattr(grid_out, "content_type", None) or "image/jpeg"
+            return img_bytes, filename, content_type
+        except Exception as e:
+            logger.error(f"Error retrieving image '{file_id}' from GridFS: {e}")
+            return None
+    return None
+
+
+def list_reports_from_directory(directory: str, limit: int = 50) -> list[dict]:
+    """
+    Lists lightweight summaries of report documents saved into the given directory
+    (collection), newest first — for browsing (not the full nested payload).
+    """
+    projection = {
+        "_id": 0,
+        "report_id": 1,
+        "inspection_id": 1,
+        "filename": 1,
+        "status": 1,
+        "compliance_score": 1,
+        "pdf_file_id": 1,
+        "pdf_filename": 1,
+        "image_file_ids": 1,
+        "image_urls": 1,
+        "timestamp": 1,
+        "created_at": 1,
+    }
+    try:
+        client = get_db_client()
+        if client is not None:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            cursor = db[directory].find({}, projection).sort("created_at", -1).limit(limit)
+            results = list(cursor)
+            if results:
+                return results
+    except Exception as e:
+        logger.error(f"Error listing reports in directory '{directory}': {e}")
+
+    records = _in_memory_directories.get(directory, [])
+    if records:
+        sorted_records = sorted(records, key=lambda r: r.get("created_at") or r.get("timestamp") or "", reverse=True)
+        return [{k: v for k, v in r.items() if k in projection} for r in sorted_records[:limit]]
+
+    # If no direct records, check if directory corresponds to a brand repository
+    for repo in _in_memory_repos.values():
+        if (
+            repo.get("brand_name", "").strip().lower() == directory.strip().lower()
+            or repo.get("repository_id", "").strip().lower() == directory.strip().lower()
+        ):
+            repo_inspections = _get_inspections_for_repo(repo)
+            return [{k: v for k, v in r.items() if k in projection} for r in repo_inspections[:limit]]
+
+    return []
+# ADD — end

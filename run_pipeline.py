@@ -1,5 +1,7 @@
 import sys
 import json
+import secrets  # ADD
+from datetime import datetime  # ADD
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -71,14 +73,46 @@ def main():
     print("\n" + "=" * 70)
     print("STEP 5/5 — PDF inspection report")
     print("=" * 70)
+    report_id = f"{secrets.randbelow(10**12):012d}"  # ADD — 12-digit unique report code
     pdf_path = generate_pdf_report(
         structured_product,
         compliance_result,
         ocr_result,
         image_path,
-        "verifeye_inspection_report.pdf"
+        "verifeye_inspection_report.pdf",
+        report_id=report_id,  # ADD
     )
+    print(f"Report ID: {report_id}")  # ADD
     print(f"PDF Report generated: {pdf_path}")
+
+    # ADD — start: prompt to save report to MongoDB
+    from backend.database import list_directories, save_report_to_directory
+
+    if input("\nSave this report to MongoDB? (y/n): ").strip().lower() == "y":
+        existing_dirs = list_directories()
+        if existing_dirs:
+            print("Existing directories:")
+            for i, d in enumerate(existing_dirs, 1):
+                print(f"  {i}. {d}")
+        else:
+            print("No existing directories found.")
+
+        directory = input("Enter directory name to save into (existing or new): ").strip()
+        if directory:
+            save_report_to_directory(directory, {
+                "report_id": report_id,
+                "image": str(image_path),
+                "product": structured_product,
+                "compliance": compliance_result,
+                "pdf_path": pdf_path,
+                "timestamp": datetime.utcnow().isoformat(),
+            })
+            print(f"Report saved to directory '{directory}' in MongoDB.")
+        else:
+            print("No directory entered. Skipping save.")
+    else:
+        print("Skipping MongoDB save.")
+    # ADD — end
 
     print("\n" + "=" * 70)
     print("PIPELINE COMPLETE")

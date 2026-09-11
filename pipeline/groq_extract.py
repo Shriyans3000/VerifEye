@@ -113,6 +113,11 @@ def extract_structured_product(
     if not api_key:
         raise RuntimeError("GROQ_API_KEY is not set.")
 
+    if not ocr_data or not any(str(item.get("text", "")).strip() for item in ocr_data):
+        empty_res = canonical_normalize_product({}, ocr_data or [])
+        empty_res["meta_extraction_mode"] = "empty_ocr"
+        return empty_res
+
     ocr_evidence = []
     for index, item in enumerate(ocr_data):
         text = str(item.get("text", "")).strip()
@@ -285,56 +290,93 @@ NORMALIZATION HINTS:
                     break
 
     import logging as _log
+    import re as _re
     _log.getLogger("verifeye.groq").warning(
         f"Groq inference unavailable ({last_err}); using deterministic normalized OCR extraction."
     )
-    if isinstance(normalized_data, dict):
-        fallback_data = {
-            "product_name": normalized_data.get("product_name"),
-            "manufacturer": normalized_data.get("manufacturer"),
-            "manufacturer_address": normalized_data.get("manufacturer_address"),
-            "country_of_origin": normalized_data.get("country_of_origin") or "India",
-            "mrp": normalized_data.get("mrp"),
-            "net_quantity": normalized_data.get("net_quantity"),
-            "unit_sale_price": normalized_data.get("unit_sale_price"),
-            "packed_date": normalized_data.get("date_packed"),
-            "manufacturing_date": normalized_data.get("date_mfg"),
-            "expiry_date": normalized_data.get("date_expiry"),
-            "use_by_date": normalized_data.get("date_use_by"),
-            "best_before": normalized_data.get("date_best_before"),
-            "batch_number": normalized_data.get("batch_number"),
-            "consumer_care": {
-                "phone": normalized_data.get("phone"),
-                "email": normalized_data.get("email"),
-            },
-            "tax_inclusive_mrp": bool(normalized_data.get("tax_inclusive")),
-            "fssai_number": normalized_data.get("fssai_number"),
-            "ingredients": normalized_data.get("ingredients"),
-            "preservatives": [],
-            "evidence": {}
-        }
-        if not fallback_data["ingredients"] and ocr_data:
-            for item in ocr_data:
-                t = str(item.get("text", ""))
-                if "ingredient" in t.lower():
-                    fallback_data["ingredients"] = t
-                    break
-        if ocr_data:
-            try:
-                from pipeline.nutrition_analysis import extract_nutrition_from_ocr
-                nut_raw, _, nut_ev = extract_nutrition_from_ocr(ocr_data)
-                if any(v is not None for k, v in nut_raw.items() if k not in ["basis_value", "basis_text", "scale_factor"]):
-                    fallback_data["nutrition"] = nut_raw
-                    for ek, ev_val in nut_ev.items():
-                        if ek not in fallback_data["evidence"]:
-                            fallback_data["evidence"][ek] = ev_val
-            except Exception:
-                pass
-        result = canonical_normalize_product(fallback_data, ocr_data)
-        _EXTRACTION_CACHE[cache_key] = copy.deepcopy(result)
-        return result
 
-    raise last_err or RuntimeError("All Groq models failed to produce a response.")
+    associations = normalized_data.get("associations", {}) if isinstance(normalized_data, dict) else {}
+
+    def _extract_date_str(region_item):
+        if not region_item or not isinstance(region_item, dict):
+            return None
+        text_val = str(region_item.get("text", "")).strip()
+        dm = _re.search(r"\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b", text_val)
+        return dm.group(0) if dm else text_val
+
+    fallback_data = {
+        "product_name": associations.get("product_name"),
+        "manufacturer": associations.get("manufacturer") or (associations.get("manufacturer_evidence", {}).get("text") if associations.get("manufacturer_evidence") else None),
+        "manufacturer_address": associations.get("manufacturer_address"),
+        "country_of_origin": associations.get("country_of_origin") or "India",
+        "mrp": associations.get("mrp_candidate") or associations.get("mrp"),
+        "net_quantity": associations.get("net_quantity_candidate") or associations.get("net_quantity"),
+        "unit_sale_price": associations.get("unit_sale_price_candidate") or associations.get("unit_sale_price"),
+        "packed_date": _extract_date_str(associations.get("mfg_date_evidence")) or _extract_date_str(associations.get("date_candidate_evidence")),
+        "manufacturing_date": _extract_date_str(associations.get("mfg_date_evidence")),
+        "expiry_date": _extract_date_str(associations.get("exp_date_evidence")),
+        "use_by_date": _extract_date_str(associations.get("exp_date_evidence")),
+        "best_before": _extract_date_str(associations.get("exp_date_evidence")),
+        "batch_number": associations.get("batch_candidate") or associations.get("batch_number"),
+        "consumer_care": {
+            "phone": associations.get("phone_evidence", {}).get("text") if associations.get("phone_evidence") else None,
+            "email": associations.get("email_evidence", {}).get("text") if associations.get("email_evidence") else None,
+        },
+        "tax_inclusive_mrp": bool(associations.get("tax_inclusive_mrp") or associations.get("tax_inclusive")),
+        "fssai_number": associations.get("fssai_number"),
+        "ingredients": associations.get("ingredients"),
+        "preservatives": [],
+        "evidence": {}
+    }
+
+    # Bind candidate evidence objects so compliance engine has audit trail
+    if associations.get("mrp_evidence"):
+        fallback_data["evidence"]["mrp"] = associations["mrp_evidence"]
+    if associations.get("tax_inclusive_evidence"):
+        fallback_data["evidence"]["tax_inclusive_mrp"] = associations["tax_inclusive_evidence"]
+    if associations.get("unit_sale_price_evidence"):
+        fallback_data["evidence"]["unit_sale_price"] = associations["unit_sale_price_evidence"]
+    if associations.get("net_quantity_evidence"):
+        fallback_data["evidence"]["net_quantity"] = associations["net_quantity_evidence"]
+    if associations.get("batch_evidence"):
+        fallback_data["evidence"]["batch_number"] = associations["batch_evidence"]
+    if associations.get("mfg_date_evidence"):
+        fallback_data["evidence"]["packed_date"] = associations["mfg_date_evidence"]
+        fallback_data["evidence"]["manufacturing_date"] = associations["mfg_date_evidence"]
+    elif associations.get("date_candidate_evidence"):
+        fallback_data["evidence"]["packed_date"] = associations["date_candidate_evidence"]
+    if associations.get("exp_date_evidence"):
+        fallback_data["evidence"]["expiry_date"] = associations["exp_date_evidence"]
+        fallback_data["evidence"]["use_by_date"] = associations["exp_date_evidence"]
+    if associations.get("phone_evidence"):
+        fallback_data["evidence"]["consumer_care_phone"] = associations["phone_evidence"]
+    if associations.get("email_evidence"):
+        fallback_data["evidence"]["consumer_care_email"] = associations["email_evidence"]
+    if associations.get("manufacturer_evidence"):
+        fallback_data["evidence"]["manufacturer"] = associations["manufacturer_evidence"]
+
+    if not fallback_data["ingredients"] and ocr_data:
+        for item in ocr_data:
+            t = str(item.get("text", ""))
+            if "ingredient" in t.lower():
+                fallback_data["ingredients"] = t
+                break
+    if ocr_data:
+        try:
+            from pipeline.nutrition_analysis import extract_nutrition_from_ocr
+            nut_raw, _, nut_ev = extract_nutrition_from_ocr(ocr_data)
+            if any(v is not None for k, v in nut_raw.items() if k not in ["basis_value", "basis_text", "scale_factor"]):
+                fallback_data["nutrition"] = nut_raw
+                for ek, ev_val in nut_ev.items():
+                    if ek not in fallback_data["evidence"]:
+                        fallback_data["evidence"][ek] = ev_val
+        except Exception:
+            pass
+
+    result = canonical_normalize_product(fallback_data, ocr_data)
+    result["meta_extraction_mode"] = "deterministic_fallback"
+    _EXTRACTION_CACHE[cache_key] = copy.deepcopy(result)
+    return result
 
 
 def main():

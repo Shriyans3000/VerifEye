@@ -6,7 +6,7 @@ const API_BASE_URL =
 
 const client = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 180000, // PaddleOCR + LLM can take up to 30-60 seconds for large labels
+  timeout: 600000, // 10 minutes timeout for dense/complex package label processing
 });
 
 export const checkHealth = async (): Promise<boolean> => {
@@ -155,4 +155,70 @@ export const addInspectionToRepository = async (
   }
 };
 
+// ADD — start
+export const fetchDirectories = async (): Promise<string[]> => {
+  try {
+    const response = await client.get<{ directories: string[] }>('/directories');
+    return response.data?.directories || [];
+  } catch (error) {
+    console.error('Failed to fetch directories:', error);
+    return [];
+  }
+};
 
+export const saveReportToDirectory = async (
+  directory: string,
+  report: Record<string, unknown>
+): Promise<boolean> => {
+  const response = await client.post<{ saved: boolean }>('/reports/save', { directory, report });
+  return response.status === 200 && response.data?.saved === true;
+};
+
+export const saveReportWithFile = async (
+  directory: string,
+  report: Record<string, unknown>,
+  pdfBlob: Blob,
+  pdfFilename: string
+): Promise<{ saved: boolean; directory: string; report: Record<string, unknown> }> => {  // CHANGED — return saved doc (has pdf_file_id) instead of just boolean
+  const formData = new FormData();
+  formData.append('directory', directory);
+  formData.append('report', JSON.stringify(report));
+  formData.append('file', pdfBlob, pdfFilename);
+
+  const response = await client.post<{ saved: boolean; directory: string; report: Record<string, unknown> }>(
+    '/reports/save-with-file',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return response.data;
+};
+
+export const getReportPdfUrl = (fileId: string): string => `${API_BASE_URL}/reports/pdf/${fileId}`;
+export const getImageUrl = (fileId: string): string => `${API_BASE_URL}/images/${fileId}`;
+
+export interface SavedReportSummary {  // ADD
+  report_id?: string;
+  inspection_id?: string;
+  filename?: string;
+  status?: string;
+  compliance_score?: number;
+  pdf_file_id?: string;
+  pdf_filename?: string;
+  image_file_ids?: string[];
+  image_urls?: string[];
+  timestamp?: string;
+  created_at?: string;
+}
+
+export const fetchReportsInDirectory = async (directory: string): Promise<SavedReportSummary[]> => {  // ADD
+  try {
+    const response = await client.get<{ directory: string; reports: SavedReportSummary[] }>(
+      `/reports/${encodeURIComponent(directory)}`
+    );
+    return response.data?.reports || [];
+  } catch (error) {
+    console.error(`Failed to fetch reports in directory '${directory}':`, error);
+    return [];
+  }
+};
+// ADD — end

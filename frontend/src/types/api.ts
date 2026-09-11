@@ -142,6 +142,7 @@ export interface InspectionMeta {
 
 export interface AnalyzeResponse {
   inspection_id?: string;
+  report_id?: string;  // ADD
   filename?: string;
   timestamp?: string;
   success: boolean;
@@ -155,6 +156,8 @@ export interface AnalyzeResponse {
   nutrition_analysis?: NutritionAnalysis;
   readability?: any;
   meta?: InspectionMeta;
+  image_file_ids?: string[];
+  image_urls?: string[];
 }
 
 export interface HealthResponse {

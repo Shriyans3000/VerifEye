@@ -40,19 +40,31 @@ def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
 
     combined_ocr_result: list[dict[str, Any]] = []
     region_counter = 0
+    processing_notes: list[str] = []
+    successful_image_count = 0
 
     # 1. Run OCR on each image and unify evidence tagged with image_index
     for idx, path_obj in enumerate(resolved_paths):
-        raw_ocr = run_ocr(path_obj, image_index=idx)
-        for item in raw_ocr:
-            combined_ocr_result.append({
-                "id": region_counter,
-                "image_index": idx,
-                "text": item.get("text", ""),
-                "confidence": item.get("confidence"),
-                "bbox": item.get("bbox")
-            })
-            region_counter += 1
+        try:
+            raw_ocr = run_ocr(path_obj, image_index=idx)
+            for item in raw_ocr:
+                combined_ocr_result.append({
+                    "id": region_counter,
+                    "image_index": idx,
+                    "text": item.get("text", ""),
+                    "confidence": item.get("confidence"),
+                    "bbox": item.get("bbox")
+                })
+                region_counter += 1
+            successful_image_count += 1
+        except Exception as ocr_err:
+            logger.warning(f"OCR failed on image index {idx} ({path_obj.name}): {ocr_err}")
+            processing_notes.append(f"Image {idx + 1} ({path_obj.name}) could not be read: {ocr_err}")
+
+    # If ALL images failed to load/read, then and only then report an actual failure
+    if successful_image_count == 0:
+        err_msg = "; ".join(processing_notes) if processing_notes else "None of the uploaded images could be decoded or processed by OCR."
+        raise ValueError(f"Image analysis unprocessable: {err_msg}")
 
     # 2. OCR Normalization
     normalized_data = normalize_ocr_data(combined_ocr_result)
@@ -132,9 +144,11 @@ def analyze_images(image_paths: list[str | Path]) -> Dict[str, Any]:
         "nutrition_analysis": nutrition_analysis,
         "readability": readability_result,
         "meta": {
-            "images_processed": len(resolved_paths),
+            "images_processed": successful_image_count,
+            "images_requested": len(resolved_paths),
             "regions_detected": len(combined_ocr_result),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "processing_notes": processing_notes
         }
     }
 

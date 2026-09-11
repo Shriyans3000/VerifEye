@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Server, UserCheck, AlertTriangle } from 'lucide-react';
+import { Server, UserCheck, AlertTriangle, Menu } from 'lucide-react';
 import { checkHealth } from '../../services/api';
 
-export const TopHeader: React.FC = () => {
+interface TopHeaderProps {
+  onToggleMobileMenu?: () => void;
+}
+
+export const TopHeader: React.FC<TopHeaderProps> = ({ onToggleMobileMenu }) => {
   const location = useLocation();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
 
@@ -72,24 +76,36 @@ export const TopHeader: React.FC = () => {
   return (
     <header className="bg-white border-b border-slate-300 shadow-xs flex-shrink-0">
       {/* Top Official Ministry Banner */}
-      <div className="bg-slate-950 px-4 py-1 text-[11px] text-slate-400 border-b border-slate-800 flex justify-between items-center">
-        <div className="flex items-center space-x-2">
+      <div className="bg-slate-950 px-3 sm:px-4 py-1 text-[10px] sm:text-[11px] text-slate-400 border-b border-slate-800 flex justify-between items-center flex-wrap gap-1">
+        <div className="flex items-center space-x-2 truncate">
           <span className="font-semibold text-amber-500 uppercase tracking-wider">Government of India</span>
-          <span>•</span>
-          <span>Department of Consumer Affairs</span>
-          <span>•</span>
-          <span>Legal Metrology Division</span>
+          <span className="hidden sm:inline">•</span>
+          <span className="hidden sm:inline">Department of Consumer Affairs</span>
         </div>
         <div className="flex items-center space-x-3 text-slate-400">
-          <span>Enforcement Workspace</span>
+          <span>Legal Metrology Division</span>
         </div>
       </div>
 
       {/* Main Header Bar */}
-      <div className="px-6 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h1 className="text-lg font-bold text-slate-900 leading-tight">{title}</h1>
-          <p className="text-xs text-slate-500">{subtitle}</p>
+      <div className="px-4 sm:px-6 py-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div>
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">{title}</h1>
+            <p className="text-[11px] sm:text-xs text-slate-500">{subtitle}</p>
+          </div>
+
+          {/* Mobile Hamburger Drawer Trigger Button */}
+          {onToggleMobileMenu && (
+            <button
+              type="button"
+              onClick={onToggleMobileMenu}
+              className="lg:hidden p-2 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer ml-3 flex-shrink-0"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu className="h-5 w-5 text-slate-800" />
+            </button>
+          )}
         </div>
 
         {/* Right Status & Officer Info (Neutral) */}

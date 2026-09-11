@@ -69,6 +69,46 @@ def normalize_ocr_data(raw_ocr: list[dict]) -> dict:
         # Fallback to standard delimited date anywhere near date keywords
         date_region = find_best(regions, r"(?:PKD|PACKED|MFG|MANUFACT(?:URED)?|DATE|USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)\b.*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}")
 
+    # Net quantity regex: explicit Net Qty header or standalone standard metric measurement
+    net_qty_rx = re.compile(r"(?:NET\s*(?:WT|WEIGHT|QTY|QUANTITY)|NET\s*:)\s*[:.]?\s*(\d+(?:\.\d+)?\s*(?:g|gm|gms|kg|ml|l|litre|litres|piece|pieces|n|u)\b)", re.I)
+    net_qty_region = None
+    net_qty_candidate = None
+    for item in regions:
+        m = net_qty_rx.search(item["text"])
+        if m:
+            net_qty_candidate = m.group(1)
+            net_qty_region = item
+            break
+    if not net_qty_candidate:
+        net_qty_region = find_best(regions, r"\b\d+(?:\.\d+)?\s*(?:g|gm|gms|kg|ml|l|litre|litres)\b")
+        if net_qty_region:
+            qm = re.search(r"\b\d+(?:\.\d+)?\s*(?:g|gm|gms|kg|ml|l|litre|litres)\b", net_qty_region["text"], re.I)
+            net_qty_candidate = qm.group(0) if qm else net_qty_region["text"]
+
+    # Batch / Lot number candidate
+    batch_rx = re.compile(r"(?:^|\b)(?:BATCH|LOT)(?:\s*(?:NO|NUMBER|\.))?\s*[:.]?\s*([A-Z0-9/-]+)", re.I)
+    batch_region = None
+    batch_candidate = None
+    for item in regions:
+        bm = batch_rx.search(item["text"])
+        if bm and bm.group(1).upper() not in ("NO", "NUMBER", "DATE", "CODE"):
+            batch_candidate = bm.group(1)
+            batch_region = item
+            break
+    if not batch_candidate:
+        batch_region = find_best(regions, r"(?:^|\b)(?:BATCH|LOT)\b")
+
+    # Consumer care candidate (phone / email)
+    phone_region = find_best(regions, r"(?:CALL|PHONE|TEL|HELPLINE|MOBILE|CARE)\s*[:.]?\s*(\+?91[-\s]?)?[0-9\s-]{8,15}")
+    email_region = find_best(regions, r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
+
+    # Specific date candidates
+    mfg_date_region = find_best(regions, r"(?:MFG|MANUFACT(?:URED)?|PKD|PACKED|PACKING)\b.*(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4,8})")
+    exp_date_region = find_best(regions, r"(?:USE\s*BY|BEST\s*BEFORE|EXP(?:IRY)?)\b.*(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4,8})")
+
+    # Manufacturer candidate
+    mfg_name_region = find_best(regions, r"(?:MFD\s*BY|MANUFACTURED\s*BY|PACKED\s*BY|MKTD\s*BY|MARKETED\s*BY)\s*[:.]?\s*(.+)")
+
     associations = {
         "mrp_candidate": mrp,
         "mrp_evidence": mrp_region,
@@ -77,6 +117,15 @@ def normalize_ocr_data(raw_ocr: list[dict]) -> dict:
         "unit_sale_price_candidate": usp_region["text"] if usp_region else None,
         "unit_sale_price_evidence": usp_region,
         "date_candidate_evidence": date_region,
+        "net_quantity_candidate": net_qty_candidate,
+        "net_quantity_evidence": net_qty_region,
+        "batch_candidate": batch_candidate,
+        "batch_evidence": batch_region,
+        "phone_evidence": phone_region,
+        "email_evidence": email_region,
+        "mfg_date_evidence": mfg_date_region,
+        "exp_date_evidence": exp_date_region,
+        "manufacturer_evidence": mfg_name_region,
     }
 
     return {

@@ -2,66 +2,100 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInspection } from '../context/InspectionContext';
 import { InspectionReportModal } from '../components/InspectionReportModal';
-import { fetchInspections } from '../services/api';
+import {
+  fetchInspections,
+  fetchDirectories,
+  fetchReportsInDirectory,
+  getReportPdfUrl,
+  fetchInspectionById,
+  SavedReportSummary,
+} from '../services/api';
 import { AnalyzeResponse } from '../types/api';
 import {
   FileText,
-  Printer,
   ExternalLink,
+  ShieldCheck,
   CheckCircle2,
   XCircle,
   AlertTriangle,
   ArrowRight,
-  ShieldCheck,
   Database,
+  FolderOpen,
+  Download,
+  Folder,
+  Layers,
 } from 'lucide-react';
 
 export const ReportsPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentInspection, imageFile, setInspectionData } = useInspection();
-  const [storedInspections, setStoredInspections] = useState<AnalyzeResponse[]>([]);
+
+  const [inspections, setInspections] = useState<AnalyzeResponse[]>([]);
   const [selectedInspection, setSelectedInspection] = useState<AnalyzeResponse | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadInspections = async () => {
-      try {
-        const records = await fetchInspections(50);
-        if (isMounted) {
-          setStoredInspections(records);
-        }
-      } catch (err) {
-        console.error('Failed to load stored inspections:', err);
-      }
-    };
-    loadInspections();
-  }, [currentInspection]);
+  // Custom MongoDB directory browsing state
+  const [directories, setDirectories] = useState<string[]>([]);
+  const [selectedDirectory, setSelectedDirectory] = useState('');
+  const [directoryReports, setDirectoryReports] = useState<SavedReportSummary[]>([]);
+  const [isLoadingDirectoryReports, setIsLoadingDirectoryReports] = useState(false);
 
-  const displayInspections: AnalyzeResponse[] = storedInspections.length > 0 
-    ? storedInspections 
-    : (currentInspection ? [currentInspection] : []);
+  useEffect(() => {
+    fetchDirectories().then(setDirectories);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedDirectory) {
+      setDirectoryReports([]);
+      return;
+    }
+    setIsLoadingDirectoryReports(true);
+    fetchReportsInDirectory(selectedDirectory)
+      .then(setDirectoryReports)
+      .finally(() => setIsLoadingDirectoryReports(false));
+  }, [selectedDirectory]);
+
+  // Load historical inspections from backend API
+  useEffect(() => {
+    fetchInspections(20, 0)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setInspections(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load inspections for reports list:', err);
+      });
+  }, []);
+
+  // Display current session inspection at top if present
+  const displayInspections: AnalyzeResponse[] = React.useMemo(() => {
+    const list = [...inspections];
+    if (currentInspection && !list.some((i) => i.inspection_id === currentInspection.inspection_id)) {
+      list.unshift(currentInspection);
+    }
+    return list;
+  }, [inspections, currentInspection]);
 
   const activeReportData = selectedInspection || currentInspection;
 
-  const getStatusBadge = (statusStr?: string) => {
-    const s = (statusStr || '').toUpperCase();
-    if (s === 'PASS' || s === 'COMPLIANT') {
+  const getStatusBadge = (status?: string) => {
+    if (status === 'PASS' || status === 'COMPLIANT') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-          <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-700" /> COMPLIANT
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
+          <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-700" /> STATUTORY COMPLIANT
         </span>
       );
     }
-    if (s === 'FAIL' || s === 'NON_COMPLIANT') {
+    if (status === 'FAIL' || status === 'NON_COMPLIANT') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-300">
-          <XCircle className="h-3 w-3 mr-1 text-rose-700" /> NON-COMPLIANT
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-300 shadow-2xs">
+          <XCircle className="h-3 w-3 mr-1 text-rose-700" /> VIOLATIONS DETECTED
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
         <AlertTriangle className="h-3 w-3 mr-1 text-amber-700" /> REVIEW REQUIRED
       </span>
     );
@@ -70,7 +104,7 @@ export const ReportsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-white border border-slate-300 rounded-lg p-5 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-white border border-slate-300 rounded-lg p-5 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 card-hover-effect">
         <div>
           <div className="flex items-center space-x-2 text-xs font-bold text-amber-700 uppercase tracking-wider mb-1">
             <FileText className="h-4 w-4" />
@@ -84,11 +118,11 @@ export const ReportsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => navigate('/repository')}
-            className="inline-flex items-center px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded text-xs font-bold transition cursor-pointer"
+            className="inline-flex items-center px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded text-xs font-bold btn-interactive cursor-pointer min-h-[44px]"
           >
             <Database className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
             <span>Search Repository</span>
@@ -96,7 +130,7 @@ export const ReportsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/inspection')}
-            className="inline-flex items-center px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow transition cursor-pointer"
+            className="inline-flex items-center px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow-xs btn-interactive cursor-pointer min-h-[44px]"
           >
             <span>New Inspection</span>
             <ArrowRight className="h-3.5 w-3.5 ml-1.5 text-amber-400" />
@@ -104,10 +138,129 @@ export const ReportsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Custom MongoDB Directory Browser Section */}
+      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden card-hover-effect">
+        <div className="bg-slate-900 text-white px-5 py-3.5 border-b border-slate-800 flex justify-between items-center text-xs">
+          <span className="font-bold uppercase tracking-wider flex items-center space-x-2">
+            <FolderOpen className="h-4 w-4 text-amber-400" />
+            <span>Saved Reports by Directory (MongoDB Atlas Archive)</span>
+          </span>
+          <span className="text-slate-400 font-mono text-[11px] flex items-center space-x-1">
+            <Layers className="h-3 w-3 text-amber-400 inline mr-1" />
+            {directories.length} Directories Configured
+          </span>
+        </div>
+        <div className="p-5 space-y-4">
+          {directories.length === 0 ? (
+            <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-md p-4 flex items-center space-x-2">
+              <Folder className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              <span>No custom directories saved yet. Use <strong>"Save to MongoDB"</strong> inside any inspection report to archive a report with PDF into a named directory.</span>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <span className="text-xs font-bold text-slate-700 block mb-2 uppercase tracking-wider">
+                  Select Directory to Inspect:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {directories.map((dir) => (
+                    <button
+                      key={dir}
+                      type="button"
+                      onClick={() => setSelectedDirectory(dir === selectedDirectory ? '' : dir)}
+                      className={`inline-flex items-center px-3.5 py-1.5 rounded-md text-xs font-bold border transition cursor-pointer btn-interactive ${
+                        selectedDirectory === dir
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Folder className={`h-3.5 w-3.5 mr-1.5 ${selectedDirectory === dir ? 'text-slate-950' : 'text-amber-600'}`} />
+                      <span>{dir}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {selectedDirectory && (
+                <div className="border border-slate-200 rounded-lg overflow-hidden divide-y divide-slate-200 bg-slate-50/50 mt-3 animate-fade-in">
+                  <div className="bg-slate-100/80 px-4 py-2 text-xs font-bold text-slate-700 flex justify-between items-center border-b border-slate-200">
+                    <span>Archived Records in "{selectedDirectory}"</span>
+                    <span className="font-mono text-[11px] text-slate-500">{directoryReports.length} reports</span>
+                  </div>
+
+                  {isLoadingDirectoryReports ? (
+                    <div className="text-xs text-slate-500 p-6 text-center">Loading directory reports...</div>
+                  ) : directoryReports.length === 0 ? (
+                    <div className="text-xs text-slate-500 p-6 text-center">No reports stored in directory "{selectedDirectory}".</div>
+                  ) : (
+                    directoryReports.map((r, idx) => (
+                      <div
+                        key={r.report_id || idx}
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 text-xs gap-3 hover:bg-white transition"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded shadow-2xs">
+                              {r.report_id || r.inspection_id || 'Report'}
+                            </span>
+                            {r.status && getStatusBadge(r.status)}
+                          </div>
+                          <div className="text-slate-600 font-medium">
+                            {r.filename || 'Commodity Packaging'}  Score: <strong>{r.compliance_score ?? ''}%</strong>
+                            {(r.created_at || r.timestamp) && (
+                              <span className="text-slate-400 font-normal">
+                                {' '} {new Date(r.created_at || r.timestamp || '').toLocaleDateString('en-IN')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 self-end sm:self-auto">
+                          {r.inspection_id && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const fullData = await fetchInspectionById(r.inspection_id!);
+                                if (fullData) {
+                                  setInspectionData(fullData);
+                                  navigate('/inspection/result');
+                                }
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded text-xs font-bold btn-interactive cursor-pointer"
+                              title="Open inspection and visual evidence canvas"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 mr-1 text-slate-600" />
+                              View
+                            </button>
+                          )}
+                          {r.pdf_file_id ? (
+                            <a
+                              href={getReportPdfUrl(r.pdf_file_id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold btn-interactive shadow-2xs"
+                            >
+                              <Download className="h-3.5 w-3.5 mr-1" />
+                              Download PDF
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-mono px-2 py-1 bg-slate-100 rounded">No PDF</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Reports Listing Area */}
       {displayInspections.length === 0 ? (
         /* Empty State */
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs p-12 text-center space-y-4 max-w-xl mx-auto my-8">
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs p-12 text-center space-y-4 max-w-xl mx-auto my-8 card-hover-effect">
           <div className="h-14 w-14 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center mx-auto text-slate-400">
             <FileText className="h-7 w-7" />
           </div>
@@ -123,7 +276,7 @@ export const ReportsPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/inspection')}
-              className="inline-flex items-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow transition cursor-pointer"
+              className="inline-flex items-center px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow-xs btn-interactive cursor-pointer min-h-[44px]"
             >
               START INSPECTION
             </button>
@@ -131,14 +284,14 @@ export const ReportsPage: React.FC = () => {
         </div>
       ) : (
         /* Stored MongoDB Inspection Records List */
-        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden divide-y divide-slate-200">
+        <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden divide-y divide-slate-200 card-hover-effect">
           <div className="bg-slate-900 text-white px-5 py-3 border-b border-slate-800 flex justify-between items-center text-xs">
             <span className="font-bold uppercase tracking-wider flex items-center space-x-1.5">
-              <ShieldCheck className="h-4 w-4 text-amber-500" />
+              <ShieldCheck className="h-4 w-4 text-amber-500 animate-pulse" />
               <span>Persisted Statutory Records ({displayInspections.length} Total)</span>
             </span>
             <span className="text-slate-400 font-mono text-[11px] flex items-center space-x-1">
-              <Database className="h-3 w-3 text-emerald-400 inline mr-1" />
+              <Database className="h-3 w-3 text-emerald-400 inline mr-1 animate-pulse" />
               MongoDB Atlas Persisted
             </span>
           </div>
@@ -157,10 +310,14 @@ export const ReportsPage: React.FC = () => {
               : 'Recent';
 
             return (
-              <div key={idStr} className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50/60 transition">
+              <div
+                key={idStr}
+                className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-slate-50 transition-all duration-200 animate-fade-in"
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
                 <div className="space-y-1.5">
                   <div className="flex items-center space-x-2">
-                    <span className="font-mono text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                    <span className="font-mono text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded shadow-2xs">
                       {idStr}
                     </span>
                     {getStatusBadge(item.status)}
@@ -174,11 +331,11 @@ export const ReportsPage: React.FC = () => {
                     <span>
                       <strong>Date:</strong> {formattedDate}
                     </span>
-                    <span>•</span>
+                    <span></span>
                     <span>
                       <strong>Compliance Score:</strong> {item.compliance_score}%
                     </span>
-                    <span>•</span>
+                    <span></span>
                     <span>
                       <strong>Summary:</strong> {item.summary?.passed ?? 0} Passed, {item.summary?.failed ?? 0} Failed, {item.summary?.review_required ?? 0} Review
                     </span>
@@ -193,7 +350,7 @@ export const ReportsPage: React.FC = () => {
                       setInspectionData(item, new File([], item.filename || 'image.png'));
                       navigate('/inspection/result');
                     }}
-                    className="inline-flex items-center px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded text-xs font-bold btn-interactive cursor-pointer min-h-[44px]"
                   >
                     <ExternalLink className="h-3.5 w-3.5 mr-1.5 text-slate-600" />
                     VIEW INSPECTION
@@ -204,10 +361,10 @@ export const ReportsPage: React.FC = () => {
                       setSelectedInspection(item);
                       setIsReportModalOpen(true);
                     }}
-                    className="inline-flex items-center px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-bold shadow transition cursor-pointer"
+                    className="inline-flex items-center px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-bold shadow-xs btn-interactive cursor-pointer min-h-[44px]"
                   >
-                    <Printer className="h-3.5 w-3.5 mr-1.5" />
-                    GENERATE REPORT
+                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                    VIEW / SAVE REPORT
                   </button>
                 </div>
               </div>

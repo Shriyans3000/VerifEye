@@ -139,15 +139,15 @@ export const GuidelinesPage: React.FC = () => {
       </div>
 
       {/* FSSAI Preservatives & Additives Codex Spotlight */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-xl p-5 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-xl p-5 shadow-sm border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 card-hover-effect">
         <div className="flex items-start space-x-3.5">
-          <div className="bg-amber-500/20 p-2.5 rounded-lg border border-amber-500/30 text-amber-400 flex-shrink-0 mt-0.5">
+          <div className="bg-amber-500/20 p-2.5 rounded-lg border border-amber-500/30 text-amber-400 flex-shrink-0 mt-0.5 animate-pulse-glow">
             <FlaskConical className="h-6 w-6" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-black text-white text-sm">FSSAI Preservatives & Chemical Additives Codex</span>
-              <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded">
+              <span className="bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded animate-pulse">
                 Banned Chemical Registry
               </span>
             </div>
@@ -159,7 +159,7 @@ export const GuidelinesPage: React.FC = () => {
 
         <Link
           to="/preservatives"
-          className="inline-flex items-center space-x-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs transition-colors flex-shrink-0 shadow-xs"
+          className="inline-flex items-center space-x-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs btn-interactive flex-shrink-0 shadow-xs cursor-pointer"
         >
           <span>Open Preservatives Codex</span>
           <ArrowRight className="h-4 w-4" />
@@ -167,7 +167,7 @@ export const GuidelinesPage: React.FC = () => {
       </div>
 
       {/* 12 Mandatory Declaration Checks */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden card-hover-effect">
         <div className="bg-slate-900 text-white px-5 py-3 border-b border-slate-800 flex items-center justify-between text-xs">
           <h3 className="font-bold uppercase tracking-wider flex items-center space-x-2">
             <ShieldAlert className="h-4 w-4 text-amber-500" />
@@ -178,13 +178,13 @@ export const GuidelinesPage: React.FC = () => {
 
         <div className="divide-y divide-slate-200">
           {declarationRules.map((item) => (
-            <div key={item.id} className="p-4 hover:bg-slate-50/60 transition text-xs">
+            <div key={item.id} className="p-4 hover:bg-slate-50 transition-all duration-200 text-xs">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex items-center space-x-2">
                   <span className="font-mono text-slate-500 font-bold">#{item.id}</span>
                   <h4 className="font-bold text-slate-900 text-sm">{item.name}</h4>
                 </div>
-                <span className="font-mono text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                <span className="font-mono text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200 shadow-2xs">
                   {item.rule}
                 </span>
               </div>
@@ -198,7 +198,7 @@ export const GuidelinesPage: React.FC = () => {
       </div>
 
       {/* 2 Automated Validation Checks */}
-      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-300 shadow-xs overflow-hidden card-hover-effect">
         <div className="bg-slate-900 text-white px-5 py-3 border-b border-slate-800 flex items-center justify-between text-xs">
           <h3 className="font-bold uppercase tracking-wider flex items-center space-x-2">
             <CheckCircle2 className="h-4 w-4 text-amber-500" />
@@ -209,10 +209,10 @@ export const GuidelinesPage: React.FC = () => {
 
         <div className="divide-y divide-slate-200">
           {validationRules.map((item) => (
-            <div key={item.id} className="p-4 hover:bg-slate-50/60 transition text-xs">
+            <div key={item.id} className="p-4 hover:bg-slate-50 transition-all duration-200 text-xs">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <h4 className="font-bold text-slate-900 text-sm">{item.name}</h4>
-                <span className="font-mono text-[11px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded">
+                <span className="font-mono text-[11px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded shadow-2xs">
                   {item.type}
                 </span>
               </div>

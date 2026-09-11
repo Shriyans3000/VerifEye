@@ -6,10 +6,12 @@ interface InspectionContextType {
   currentInspection: AnalyzeResponse | null;
   imageFile: File | null;
   imageFiles: File[];
+  imageUrl: string | null;
+  imageUrls: string[];
   isAnalyzing: boolean;
   errorMessage: string | null;
   performAnalysis: (files: File | File[]) => Promise<boolean>;
-  setInspectionData: (data: AnalyzeResponse, files: File | File[]) => void;
+  setInspectionData: (data: AnalyzeResponse, files?: File | File[]) => void;
   clearSession: () => void;
 }
 
@@ -42,11 +44,33 @@ export const InspectionProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
-  const setInspectionData = (data: AnalyzeResponse, files: File | File[]) => {
+  const setInspectionData = (data: AnalyzeResponse, files?: File | File[]) => {
     setCurrentInspection(data);
-    const arr = Array.isArray(files) ? files : [files];
+    const arr = files ? (Array.isArray(files) ? files : [files]) : [];
     setImageFiles(arr);
     setErrorMessage(null);
+
+    // If files are missing or empty, but data has image_urls from MongoDB, rehydrate real File objects
+    if (data.image_urls && data.image_urls.length > 0 && (arr.length === 0 || arr.every((f) => f.size === 0))) {
+      Promise.all(
+        data.image_urls.map(async (url, idx) => {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const blob = await res.blob();
+            const filename = (data.filename && idx === 0) ? data.filename : `package_label_${idx + 1}.png`;
+            return new File([blob], filename, { type: blob.type || 'image/png' });
+          } catch {
+            return null;
+          }
+        })
+      ).then((rehydrated) => {
+        const validFiles = rehydrated.filter((f): f is File => f !== null && f.size > 0);
+        if (validFiles.length > 0) {
+          setImageFiles(validFiles);
+        }
+      });
+    }
   };
 
   const clearSession = () => {
@@ -56,12 +80,17 @@ export const InspectionProvider: React.FC<{ children: ReactNode }> = ({ children
     setIsAnalyzing(false);
   };
 
+  const primaryImageUrl = (currentInspection?.image_urls && currentInspection.image_urls[0]) || null;
+  const allImageUrls = currentInspection?.image_urls || [];
+
   return (
     <InspectionContext.Provider
       value={{
         currentInspection,
         imageFile: imageFiles[0] || null,
         imageFiles,
+        imageUrl: primaryImageUrl,
+        imageUrls: allImageUrls,
         isAnalyzing,
         errorMessage,
         performAnalysis,

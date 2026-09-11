@@ -108,7 +108,7 @@ export const EvidenceOverlay: React.FC<EvidenceOverlayProps> = ({
             width: `${region.widthPercent}%`,
             height: `${region.heightPercent}%`,
           }}
-          className="absolute border-2 border-amber-500 bg-amber-500/25 shadow-[0_0_12px_rgba(245,158,11,0.65)] pointer-events-auto transition-all animate-pulse"
+          className="absolute border-2 border-amber-400 bg-amber-500/25 shadow-[0_0_18px_rgba(245,158,11,0.8)] pointer-events-auto transition-all duration-300 animate-pulse-ring"
         >
           {/* Label tag above box */}
           <div className="absolute -top-5 left-0 z-20 whitespace-nowrap bg-amber-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-md flex items-center space-x-1 select-none">

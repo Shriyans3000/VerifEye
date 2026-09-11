@@ -504,19 +504,19 @@ export const PreservativesGuidePage: React.FC = () => {
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-700/60 text-xs">
-            <div className="bg-rose-950/60 border border-rose-700/50 rounded-lg p-3">
+            <div className="bg-rose-950/60 border border-rose-700/50 rounded-lg p-3 card-hover-effect">
               <span className="text-rose-400 font-bold block text-base">{bannedCount} Banned in India</span>
               <span className="text-slate-400 text-[11px]">Zero tolerance under FSSAI</span>
             </div>
-            <div className="bg-amber-950/60 border border-amber-700/50 rounded-lg p-3">
+            <div className="bg-amber-950/60 border border-amber-700/50 rounded-lg p-3 card-hover-effect">
               <span className="text-amber-400 font-bold block text-base">{restrictedCount} Globally Banned</span>
               <span className="text-slate-400 text-[11px]">Prohibited in EU/Japan/UK</span>
             </div>
-            <div className="bg-emerald-950/60 border border-emerald-700/50 rounded-lg p-3">
+            <div className="bg-emerald-950/60 border border-emerald-700/50 rounded-lg p-3 card-hover-effect">
               <span className="text-emerald-400 font-bold block text-base">{permittedCount} Permitted Additives</span>
               <span className="text-slate-400 text-[11px]">Strict FSSAI ppm limits</span>
             </div>
-            <div className="bg-indigo-950/60 border border-indigo-700/50 rounded-lg p-3">
+            <div className="bg-indigo-950/60 border border-indigo-700/50 rounded-lg p-3 card-hover-effect">
               <span className="text-indigo-300 font-bold block text-base">INS & E-Codes</span>
               <span className="text-slate-400 text-[11px]">Harmonized decoding system</span>
             </div>
@@ -527,9 +527,9 @@ export const PreservativesGuidePage: React.FC = () => {
       {/* Critical Consumer Warnings Panel */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Warning 1: Benzene reaction */}
-        <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded-r-lg shadow-2xs">
+        <div className="bg-rose-50 border-l-4 border-rose-600 p-4 rounded-r-lg shadow-2xs card-hover-effect">
           <div className="flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-rose-600 flex-shrink-0 mt-0.5 animate-bounce-subtle" />
             <div className="text-xs space-y-1">
               <span className="font-bold text-rose-900 text-sm block">
                 🚨 The Benzene Hazard (Sodium Benzoate + Vitamin C)
@@ -542,7 +542,7 @@ export const PreservativesGuidePage: React.FC = () => {
         </div>
 
         {/* Warning 2: Hidden INS numbers */}
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-2xs">
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-2xs card-hover-effect">
           <div className="flex items-start space-x-3">
             <Info className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">

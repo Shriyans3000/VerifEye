@@ -355,10 +355,10 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => !disabled && fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
+          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 card-hover-effect ${
             isDragging
-              ? 'border-amber-500 bg-amber-50/50'
-              : 'border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50'
+              ? 'border-amber-500 bg-amber-50/80 shadow-[0_0_25px_rgba(245,158,11,0.25)] animate-pulse scale-[1.01]'
+              : 'border-slate-300 hover:border-amber-400 bg-slate-50/50 hover:bg-amber-50/20'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <input
@@ -370,11 +370,11 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
             className="hidden"
             disabled={disabled}
           />
-          <div className="mx-auto h-12 w-12 text-slate-400 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-            <Upload className="h-6 w-6 text-slate-600" />
+          <div className="mx-auto h-12 w-12 text-slate-400 bg-slate-100/80 rounded-full flex items-center justify-center mb-3 shadow-2xs group">
+            <Upload className="h-6 w-6 text-slate-600 animate-float group-hover:scale-110 transition-transform" />
           </div>
-          <p className="text-sm font-semibold text-slate-700">
-            Upload Label Image(s) or Drag & Drop
+          <p className="text-sm font-bold text-slate-800">
+            Upload Label Image(s) or Drag &amp; Drop
           </p>
           <p className="text-xs text-slate-500 mt-1">
             Supports up to 2 images per inspection • JPG, PNG, WEBP (Max 10MB each)

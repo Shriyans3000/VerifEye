@@ -84,7 +84,11 @@ def format_confidence_summary(check):
     ev = get_evidence(check)
     if not ev:
         return "N/A"
-    confs = [float(x.get("confidence")) for x in ev if x.get("confidence") is not None]
+    confs: list[float] = []  # FIX — bind lookup once so isinstance() narrows before float()
+    for x in ev:
+        conf = x.get("confidence")
+        if isinstance(conf, (int, float)):
+            confs.append(float(conf))
     if not confs:
         return "N/A"
     return f"Min {min(confs):.1%} / Avg {sum(confs)/len(confs):.1%}"
@@ -94,6 +98,7 @@ def build_report(data, output_file):
     product = data.get("product", {})
     compliance = data.get("compliance", {})
     ocr = data.get("ocr", {})
+    report_id = data.get("report_id", "N/A")  # ADD
 
     output_path = Path(output_file).resolve()
 
@@ -174,6 +179,7 @@ def build_report(data, output_file):
     # HEADER
     story.append(Paragraph("VERIFEYE INSPECTION REPORT", title_style))
     story.append(Spacer(1, 4))
+    story.append(Paragraph(f"Report ID: {report_id}", subtitle_style))  # ADD
     story.append(Paragraph("AI-Assisted Legal Metrology Compliance Audit", subtitle_style))
     story.append(Spacer(1, 10))
 
@@ -349,16 +355,16 @@ def build_report(data, output_file):
     # FONT READABILITY & LEGIBILITY ANALYSIS (RULE 9)
     readability = data.get("readability") or compliance.get("readability")
     if readability and isinstance(readability, dict):
-        summary = readability.get("summary", {})
+        read_summary = readability.get("summary", {})
         regions = readability.get("regions", [])
 
         story.append(Spacer(1, 12))
         story.append(Paragraph("STATUTORY FONT READABILITY & LEGIBILITY ANALYSIS (RULE 9)", heading_style))
 
-        avg_height = summary.get("average_text_height_px", 0)
-        min_height = summary.get("smallest_detected_text_px", 0)
-        avg_conf = summary.get("average_confidence", 0)
-        overall_read_status = summary.get("overall_status", "REVIEW")
+        avg_height = read_summary.get("average_text_height_px", 0)
+        min_height = read_summary.get("smallest_detected_text_px", 0)
+        avg_conf = read_summary.get("average_confidence", 0)
+        overall_read_status = read_summary.get("overall_status", "REVIEW")
 
         read_summary_data = [
             [
@@ -375,9 +381,9 @@ def build_report(data, output_file):
             ],
             [
                 Paragraph("<b>Legible / Total:</b>", bold_normal_style),
-                Paragraph(f"{summary.get('readable_count', len(regions))} / {summary.get('total_regions', len(regions))}", normal_style),
+                Paragraph(f"{read_summary.get('readable_count', len(regions))} / {read_summary.get('total_regions', len(regions))}", normal_style),
                 Paragraph("<b>Small / Low-Contrast:</b>", bold_normal_style),
-                Paragraph(f"Small: {summary.get('small_text_count', 0)} | Low-Contrast: {summary.get('low_contrast_count', 0)}", normal_style),
+                Paragraph(f"Small: {read_summary.get('small_text_count', 0)} | Low-Contrast: {read_summary.get('low_contrast_count', 0)}", normal_style),
             ]
         ]
         read_summary_table = Table(read_summary_data, colWidths=[45 * mm, 42 * mm, 45 * mm, 42 * mm])
@@ -440,7 +446,7 @@ def build_report(data, output_file):
     technical_rows = [
         ["Input Image", safe(data.get("verifeye", {}).get("image"))],
         ["OCR Regions Detected", str(ocr.get("regions_detected", 0))],
-        ["Pipeline Version", safe(data.get("verifeye", {}).get("version", "prototype-1.1"))],
+        ["Pipeline Version", safe(data.get("verifeye", {}).get("version", "prototype-1.0"))],
     ]
 
     technical_table = Table(technical_rows, colWidths=[65 * mm, 109 * mm])
@@ -474,6 +480,7 @@ def generate_pdf_report(
     ocr_data: list[dict] | dict,
     image_path: str | Path,
     output_pdf_path: str | Path,
+    report_id: str | None = None,
     readability_data: dict | None = None,
     nutrition_data: dict | None = None
 ) -> str:
@@ -500,10 +507,10 @@ def generate_pdf_report(
             "image": str(image_path) if image_path else "Not specified",
             "version": "prototype-1.1",
         },
+        "report_id": report_id or "N/A",  # ADD
     }
 
     return build_report(data, output_pdf_path)
-
 
 
 def main():

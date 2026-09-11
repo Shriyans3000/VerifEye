@@ -5,6 +5,7 @@ from backend.config import CORS_ORIGINS  # pyrefly: ignore [missing-import] # ty
 from backend.routes.health import router as health_router  # pyrefly: ignore [missing-import] # type: ignore
 from backend.routes.analyze import router as analyze_router  # pyrefly: ignore [missing-import] # type: ignore
 from backend.routes.inspections import router as inspections_router  # pyrefly: ignore [missing-import] # type: ignore
+from backend.routes.reports import router as reports_router  # ADD
 
 app = FastAPI(
     title="VerifEye Legal Metrology Compliance API",
@@ -41,6 +42,8 @@ app.include_router(analyze_router)
 app.include_router(analyze_router, prefix="/api")
 app.include_router(inspections_router)
 app.include_router(inspections_router, prefix="/api")
+app.include_router(reports_router)  # ADD
+app.include_router(reports_router, prefix="/api")  # ADD
 
 
 if __name__ == "__main__":
