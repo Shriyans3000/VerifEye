@@ -369,53 +369,161 @@ _in_memory_images: dict[str, tuple[bytes, str, str]] = {}  # ADD: file_id -> (by
 
 
 
+_active_uri: str | None = None
+_last_failure_time: float = 0.0
+
+
+def get_mongodb_config() -> tuple[str, str]:
+    """
+    Dynamically re-reads MONGODB_URI and MONGODB_DB_NAME from .env file
+    using override=True to guarantee runtime accuracy.
+    """
+    import os
+    from backend.config import env_path
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(dotenv_path=env_path, override=True)
+    except Exception:
+        pass
+    uri = os.getenv("MONGODB_URI", "").strip().strip('"').strip("'")
+    db_name = os.getenv("MONGODB_DB_NAME", "verifeye").strip().strip('"').strip("'")
+    return uri, (db_name or "verifeye")
+
+
 def get_db_client():
-    global _client, _db_available
-    if not MONGODB_URI or not _db_available:
+    """
+    Returns active MongoClient connected to MongoDB Atlas.
+    Automatically reconnects if MONGODB_URI changes in .env.
+    """
+    global _client, _active_uri, _last_failure_time
+    import time
+    uri, _ = get_mongodb_config()
+    if not uri:
+        return None
+
+    # If URI changed in .env, close stale connection immediately
+    if _client is not None and _active_uri != uri:
+        try:
+            _client.close()
+        except Exception:
+            pass
+        _client = None
+
+    # If recent connection failure (< 3s ago) on the same URI, avoid spamming
+    now = time.time()
+    if _client is None and (now - _last_failure_time < 3.0) and _active_uri == uri:
         return None
 
     if _client is None:
         candidate_client = None
         try:
-            client_kwargs: dict[str, Any] = {  # FIX — Any (not object) is assignable to Mongo's varied kwarg types
-                "serverSelectionTimeoutMS": 2500,
-                "connectTimeoutMS": 2500,
+            client_kwargs: dict[str, Any] = {
+                "serverSelectionTimeoutMS": 5000,
+                "connectTimeoutMS": 5000,
             }
             if _CA_FILE:
                 client_kwargs["tlsCAFile"] = _CA_FILE
 
-            candidate_client = MongoClient(MONGODB_URI, **client_kwargs)
-            # Ping to verify connection
+            candidate_client = MongoClient(uri, **client_kwargs)
             candidate_client.admin.command('ping')
             _client = candidate_client
+            _active_uri = uri
             logger.info("Successfully connected to MongoDB Atlas.")
         except Exception as e:
+            _last_failure_time = time.time()
+            _active_uri = uri
             if candidate_client is not None:
                 try:
                     candidate_client.close()
                 except Exception:
                     pass
             _client = None
-            _db_available = False
             logger.warning(f"Could not connect to MongoDB Atlas ({e}). Operating in fast in-memory store mode.")
             return None
 
     return _client
 
 
-def get_inspections_collection():
+def get_db():
     client = get_db_client()
     if client is None:
         return None
+    _, db_name = get_mongodb_config()
+    return client[db_name or "verifeye"]
 
-    db = client[MONGODB_DB_NAME or "verifeye"]
+
+def get_inspections_collection():
+    db = get_db()
+    if db is None:
+        return None
+
     collection = db["inspections"]
     try:
         collection.create_index("inspection_id", unique=True)
         collection.create_index([("timestamp", -1)])
+        # If MongoDB collection is completely empty, populate seed inspections
+        if collection.estimated_document_count() == 0:
+            for seed in DEFAULT_SEED_INSPECTIONS:
+                try:
+                    doc = dict(seed)
+                    doc.setdefault("created_at", datetime.utcnow().isoformat())
+                    collection.update_one({"inspection_id": doc["inspection_id"]}, {"$setOnInsert": doc}, upsert=True)
+                except Exception:
+                    pass
     except Exception as e:
-        logger.warning(f"Could not create collection indexes: {e}")
+        logger.warning(f"Could not create collection indexes or seed data: {e}")
     return collection
+
+
+def get_mongodb_status() -> dict:
+    """
+    Returns complete real-time status of the MongoDB connection for health checks & UI.
+    """
+    uri, db_name = get_mongodb_config()
+    if not uri:
+        return {
+            "configured": False,
+            "connected": False,
+            "status": "unconfigured",
+            "message": "MONGODB_URI is not set in .env"
+        }
+
+    client = get_db_client()
+    if client is None:
+        return {
+            "configured": True,
+            "connected": False,
+            "status": "disconnected",
+            "database": db_name,
+            "message": "MongoDB URI is present in .env but connection failed or timed out."
+        }
+
+    try:
+        ping_res = client.admin.command('ping')
+        db = client[db_name]
+        cols = db.list_collection_names()
+        stats = {}
+        for c in cols[:10]:
+            try:
+                stats[c] = db[c].estimated_document_count()
+            except Exception:
+                stats[c] = db[c].count_documents({})
+        return {
+            "configured": True,
+            "connected": True,
+            "status": "connected",
+            "database": db_name,
+            "ping": ping_res.get("ok") == 1,
+            "collections": stats
+        }
+    except Exception as e:
+        return {
+            "configured": True,
+            "connected": False,
+            "status": "error",
+            "database": db_name,
+            "error": str(e)
+        }
 
 
 def save_inspection(analysis_result: dict, filename: str = "", image_file_ids: list[str] | None = None) -> dict:
