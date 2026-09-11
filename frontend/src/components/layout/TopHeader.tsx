@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Server, UserCheck, AlertTriangle, Menu } from 'lucide-react';
 import { checkHealth } from '../../services/api';
 
@@ -10,6 +10,43 @@ interface TopHeaderProps {
 export const TopHeader: React.FC<TopHeaderProps> = ({ onToggleMobileMenu }) => {
   const location = useLocation();
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
+
+  const [activeUser, setActiveUser] = useState<{
+    name: string;
+    role: string;
+    badgeId: string;
+    jurisdiction: string;
+  }>(() => {
+    try {
+      const stored = localStorage.getItem('verifeye_active_user');
+      return stored ? JSON.parse(stored) : {
+        name: 'Inspector Rajesh Kumar',
+        role: 'Officer',
+        badgeId: 'LM-OFFICER-402',
+        jurisdiction: 'Delhi NCR Enforcement Division',
+      };
+    } catch {
+      return {
+        name: 'Inspector Rajesh Kumar',
+        role: 'Officer',
+        badgeId: 'LM-OFFICER-402',
+        jurisdiction: 'Delhi NCR Enforcement Division',
+      };
+    }
+  });
+
+  useEffect(() => {
+    const handleUserChange = () => {
+      try {
+        const stored = localStorage.getItem('verifeye_active_user');
+        if (stored) setActiveUser(JSON.parse(stored));
+      } catch {
+        // Ignore
+      }
+    };
+    window.addEventListener('verifeye_user_changed', handleUserChange);
+    return () => window.removeEventListener('verifeye_user_changed', handleUserChange);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -132,18 +169,27 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ onToggleMobileMenu }) => {
             )}
           </div>
 
-          {/* Neutral Officer Identity (Strictly no fake IDs or personal names) */}
-          <div className="bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-md flex items-center space-x-2 text-slate-700">
-            <UserCheck className="h-4 w-4 text-amber-600" />
+          {/* Active Officer Identity */}
+          <Link
+            to="/login"
+            title="Click to switch officer account or log in"
+            className="bg-slate-100 hover:bg-slate-200/80 border border-slate-300 hover:border-slate-400 px-3 py-1.5 rounded-md flex items-center space-x-2 text-slate-700 transition cursor-pointer"
+          >
+            <UserCheck className="h-4 w-4 text-amber-600 shrink-0" />
             <div className="text-left">
-              <span className="font-bold text-slate-900 block text-[11px] leading-tight">
-                INSPECTION OFFICER
-              </span>
-              <span className="text-[10px] text-slate-500 block leading-tight">
-                District Enforcement Cell
+              <div className="flex items-center space-x-1.5">
+                <span className="font-bold text-slate-900 block text-[11px] leading-tight">
+                  {activeUser.name}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                  {activeUser.role}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-500 block leading-tight font-mono">
+                {activeUser.badgeId} &bull; {activeUser.jurisdiction.split('(')[0].trim()}
               </span>
             </div>
-          </div>
+          </Link>
         </div>
       </div>
     </header>

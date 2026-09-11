@@ -353,7 +353,7 @@ except Exception as _nut_init_err:
     logger.warning(f"Could not initialize seed nutrition analysis: {_nut_init_err}")
 
 _in_memory_db: dict[str, dict] = {
-    doc["inspection_id"]: dict(doc) for doc in DEFAULT_SEED_INSPECTIONS
+    str(doc["inspection_id"]): dict(doc) for doc in DEFAULT_SEED_INSPECTIONS
 }
 _in_memory_directories: dict[str, list[dict]] = {
     repo["brand_name"]: [] for repo in DEFAULT_BRAND_REPOSITORIES
@@ -416,6 +416,7 @@ def get_db_client():
 
     if _client is None:
         candidate_client = None
+        # Phase 1: Try strict SSL with certifi CA bundle
         try:
             client_kwargs: dict[str, Any] = {
                 "serverSelectionTimeoutMS": 5000,
@@ -429,17 +430,49 @@ def get_db_client():
             _client = candidate_client
             _active_uri = uri
             logger.info("Successfully connected to MongoDB Atlas.")
-        except Exception as e:
-            _last_failure_time = time.time()
-            _active_uri = uri
+        except Exception as e1:
+            # Close failed candidate
             if candidate_client is not None:
                 try:
                     candidate_client.close()
                 except Exception:
                     pass
-            _client = None
-            logger.warning(f"Could not connect to MongoDB Atlas ({e}). Operating in fast in-memory store mode.")
-            return None
+                candidate_client = None
+
+            # Phase 2: If SSL-related failure, retry with relaxed TLS validation
+            # This handles networks with TLS interception (hotspots, proxies)
+            ssl_keywords = ("SSL", "TLS", "ssl", "tls", "handshake", "certificate", "CERTIFICATE")
+            is_ssl_error = any(kw in str(e1) for kw in ssl_keywords)
+
+            if is_ssl_error:
+                try:
+                    fallback_kwargs: dict[str, Any] = {
+                        "serverSelectionTimeoutMS": 5000,
+                        "connectTimeoutMS": 5000,
+                        "tlsAllowInvalidCertificates": True,
+                    }
+                    candidate_client = MongoClient(uri, **fallback_kwargs)
+                    candidate_client.admin.command('ping')
+                    _client = candidate_client
+                    _active_uri = uri
+                    logger.info("Connected to MongoDB Atlas with relaxed TLS (network may be intercepting SSL).")
+                except Exception as e2:
+                    if candidate_client is not None:
+                        try:
+                            candidate_client.close()
+                        except Exception:
+                            pass
+                    _last_failure_time = time.time()
+                    _active_uri = uri
+                    _client = None
+                    logger.warning(f"Could not connect to MongoDB Atlas even with relaxed TLS ({e2}). Operating in fast in-memory store mode.")
+                    return None
+            else:
+                _last_failure_time = time.time()
+                _active_uri = uri
+                _client = None
+                logger.warning(f"Could not connect to MongoDB Atlas ({e1}). Operating in fast in-memory store mode.")
+                return None
 
     return _client
 
@@ -600,7 +633,7 @@ def list_inspections(limit: int = 50, skip: int = 0, q: str | None = None) -> li
             cursor = collection.find(query_filter, {"_id": 0, "created_at": 0}).sort("timestamp", -1).skip(skip).limit(limit)
             results = list(cursor)
             if results:
-                return results
+                return [_enrich_inspection_images(r) for r in results]
 
         # Fallback to in-memory store
         all_records = list(_in_memory_db.values())
@@ -623,7 +656,7 @@ def list_inspections(limit: int = 50, skip: int = 0, q: str | None = None) -> li
             all_records = filtered
 
         sorted_records = sorted(all_records, key=lambda x: x.get("timestamp", ""), reverse=True)
-        return sorted_records[skip : skip + limit]
+        return [_enrich_inspection_images(r) for r in sorted_records[skip : skip + limit]]
     except Exception as e:
         logger.error(f"Error fetching inspections from MongoDB: {e}")
         all_records = list(_in_memory_db.values())
@@ -642,8 +675,55 @@ def list_inspections(limit: int = 50, skip: int = 0, q: str | None = None) -> li
                 ]).lower()
             ]
         sorted_records = sorted(all_records, key=lambda x: x.get("timestamp", ""), reverse=True)
-        return sorted_records[skip : skip + limit]
+        return [_enrich_inspection_images(r) for r in sorted_records[skip : skip + limit]]
 
+
+
+def _enrich_inspection_images(doc: dict) -> dict:
+    """
+    Ensures that an inspection document has valid image_urls and image_file_ids populated.
+    If missing, resolves from GridFS by matching filename or falls back to standard sample labels.
+    """
+    if not isinstance(doc, dict):
+        return doc
+    enriched = dict(doc)
+    urls = enriched.get("image_urls")
+    fids = enriched.get("image_file_ids")
+    if urls and len(urls) > 0 and (not fids or len(fids) == 0):
+        enriched["image_file_ids"] = [u.split("/")[-1] for u in urls if "/images/" in u]
+        return enriched
+    if fids and len(fids) > 0 and (not urls or len(urls) == 0):
+        enriched["image_urls"] = [f"/api/images/{fid}" for fid in fids]
+        return enriched
+    if urls and len(urls) > 0 and fids and len(fids) > 0:
+        return enriched
+
+    fn = enriched.get("filename") or ""
+    client = get_db_client()
+    found_fid = None
+    if client is not None:
+        try:
+            db = client[MONGODB_DB_NAME or "verifeye"]
+            if fn:
+                match = db["fs.files"].find_one({"filename": fn})
+                if match:
+                    found_fid = str(match["_id"])
+            if not found_fid:
+                for sample_name in ("test_label.jpeg", "test_image2.png", "parle_g_gold_back.jpeg"):
+                    s = db["fs.files"].find_one({"filename": sample_name})
+                    if s:
+                        found_fid = str(s["_id"])
+                        break
+        except Exception:
+            pass
+
+    if found_fid:
+        enriched["image_file_ids"] = [found_fid]
+        enriched["image_urls"] = [f"/api/images/{found_fid}"]
+    else:
+        enriched["image_urls"] = ["/samples/test_label.jpeg"]
+
+    return enriched
 
 
 def get_inspection_by_id(inspection_id: str) -> dict | None:
@@ -655,12 +735,14 @@ def get_inspection_by_id(inspection_id: str) -> dict | None:
         if collection is not None:
             doc = collection.find_one({"inspection_id": inspection_id}, {"_id": 0, "created_at": 0})
             if doc:
-                return doc
+                return _enrich_inspection_images(doc)
 
-        return _in_memory_db.get(inspection_id)
+        res = _in_memory_db.get(inspection_id)
+        return _enrich_inspection_images(res) if res else None
     except Exception as e:
         logger.error(f"Error fetching inspection '{inspection_id}' from MongoDB: {e}")
-        return _in_memory_db.get(inspection_id)
+        res = _in_memory_db.get(inspection_id)
+        return _enrich_inspection_images(res) if res else None
 
 
 def _get_inspections_for_repo(repo: dict) -> list[dict]:
@@ -677,9 +759,10 @@ def _get_inspections_for_repo(repo: dict) -> list[dict]:
     def _add_match(item: dict):
         if not isinstance(item, dict):
             return
-        key = item.get("inspection_id") or item.get("report_id") or str(id(item))
+        enriched = _enrich_inspection_images(item)
+        key = enriched.get("inspection_id") or enriched.get("report_id") or str(id(item))
         if key not in matches_map:
-            matches_map[key] = item
+            matches_map[key] = enriched
 
     # 1. Check in-memory inspections
     for insp in _in_memory_db.values():
@@ -1251,4 +1334,238 @@ def list_reports_from_directory(directory: str, limit: int = 50) -> list[dict]:
             return [{k: v for k, v in r.items() if k in projection} for r in repo_inspections[:limit]]
 
     return []
+
+
+# =====================================================================
+# OFFICER AUTHENTICATION & USER MANAGEMENT (MongoDB + in-memory store)
+# =====================================================================
+import hashlib
+
+DEFAULT_OFFICERS = [
+    {
+        "user_id": "usr_officer_402",
+        "email": "rajesh.kumar@consumer.gov.in",
+        "password": "Officer@123",
+        "name": "Inspector Rajesh Kumar",
+        "role": "Officer",
+        "role_title": "Legal Metrology Field Inspector",
+        "badge_id": "LM-OFFICER-402",
+        "jurisdiction": "Delhi NCR Enforcement Division",
+        "clearance_level": "Level 1 — Field Inspection & Sampling",
+        "avatar_color": "bg-emerald-700 text-white",
+        "badge_bg": "bg-emerald-50",
+        "badge_border": "border-emerald-300",
+        "badge_text": "text-emerald-800",
+        "capabilities": [
+            "Multi-image label OCR inspection",
+            "Rule 6(1) statutory compliance scoring",
+            "Preservative & nutritional HFSS audit",
+            "Export PDF statutory audit scorecards"
+        ]
+    },
+    {
+        "user_id": "usr_sr_ctrl_108",
+        "email": "sunita.deshmukh@consumer.gov.in",
+        "password": "Officer@123",
+        "name": "Smt. Sunita Deshmukh",
+        "role": "Senior Officer",
+        "role_title": "Senior Enforcement Controller & Superintendent",
+        "badge_id": "LM-SR-CTRL-108",
+        "jurisdiction": "Western Regional Directorate (Maharashtra & Gujarat)",
+        "clearance_level": "Level 2 — Brand Audits & Repository Sanction",
+        "avatar_color": "bg-amber-700 text-white",
+        "badge_bg": "bg-amber-50",
+        "badge_border": "border-amber-300",
+        "badge_text": "text-amber-800",
+        "capabilities": [
+            "All Field Officer inspection powers",
+            "Brand Repository dossier creation & management",
+            "Batch surveillance history & compounding review",
+            "Inter-state legal metrology referrals"
+        ]
+    },
+    {
+        "user_id": "usr_adm_root_01",
+        "email": "arvind.swaminathan@nic.in",
+        "password": "Admin@123",
+        "name": "Dr. Arvind Swaminathan",
+        "role": "Admin",
+        "role_title": "Central Directorate System Administrator",
+        "badge_id": "GOV-ADM-ROOT-01",
+        "jurisdiction": "Ministry of Consumer Affairs, New Delhi (HQ)",
+        "clearance_level": "Level 3 — Central Statutory & AI Policy Authority",
+        "avatar_color": "bg-indigo-700 text-white",
+        "badge_bg": "bg-indigo-50",
+        "badge_border": "border-indigo-300",
+        "badge_text": "text-indigo-800",
+        "capabilities": [
+            "Full administrative & system overseer access",
+            "Deterministic rule engine threshold tuning",
+            "Officer credentials & jurisdiction delegation",
+            "Statutory legal metrology reporting audit"
+        ]
+    }
+]
+
+_in_memory_officers: dict[str, dict] = {}
+
+
+def hash_officer_password(password: str) -> str:
+    salt = "verifeye_officer_salt_2026"
+    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+
+
+def verify_officer_password(plain_password: str, hashed_password: str) -> bool:
+    return hash_officer_password(plain_password) == hashed_password
+
+
+def get_officers_collection():
+    db = get_db()
+    if db is None:
+        return None
+    collection = db["officers"]
+    try:
+        collection.create_index("email", unique=True)
+        # Seed default officers if collection is empty
+        if collection.estimated_document_count() == 0:
+            for officer in DEFAULT_OFFICERS:
+                try:
+                    doc = dict(officer)
+                    doc["password_hash"] = hash_officer_password(doc.pop("password"))
+                    doc.setdefault("created_at", datetime.utcnow().isoformat())
+                    collection.update_one({"email": doc["email"]}, {"$setOnInsert": doc}, upsert=True)
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning(f"Could not create officers index or seed: {e}")
+    return collection
+
+
+def _sanitize_officer_doc(doc: dict) -> dict:
+    cleaned = dict(doc)
+    cleaned.pop("_id", None)
+    cleaned.pop("password_hash", None)
+    cleaned.pop("password", None)
+    cleaned["id"] = cleaned.get("user_id") or cleaned.get("id") or cleaned.get("badge_id")
+    cleaned["roleTitle"] = cleaned.get("role_title") or f"Legal Metrology {cleaned.get('role', 'Officer')}"
+    cleaned["badgeId"] = cleaned.get("badge_id") or "LM-OFFICER"
+    cleaned["clearanceLevel"] = cleaned.get("clearance_level") or "Field Enforcement Clearance"
+    cleaned["avatarColor"] = cleaned.get("avatar_color") or "bg-slate-800 text-white"
+    cleaned["badgeBg"] = cleaned.get("badge_bg") or "bg-slate-100"
+    cleaned["badgeBorder"] = cleaned.get("badge_border") or "border-slate-300"
+    cleaned["badgeText"] = cleaned.get("badge_text") or "text-slate-800"
+    cleaned.setdefault("capabilities", [
+        "Multi-image label OCR inspection",
+        "Rule 6(1) statutory compliance scoring",
+        "Preservative & nutritional HFSS audit",
+        "Export PDF statutory audit scorecards"
+    ])
+    return cleaned
+
+
+def register_officer(data: dict) -> dict:
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise ValueError("A valid email address is required.")
+
+    password = (data.get("password") or "").strip()
+    if len(password) < 6:
+        raise ValueError("Password must be at least 6 characters.")
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        raise ValueError("Full official name is required.")
+
+    role = data.get("role") or "Officer"
+    badge_id = data.get("badge_id") or f"LM-{role.upper()[:3]}-{uuid.uuid4().hex[:4].upper()}"
+    jurisdiction = data.get("jurisdiction") or "National Enforcement Division"
+
+    # Check if user already exists
+    collection = get_officers_collection()
+    if collection is not None:
+        existing = collection.find_one({"email": email})
+        if existing:
+            raise ValueError("An officer with this email is already registered in the database.")
+    elif email in _in_memory_officers:
+        raise ValueError("An officer with this email is already registered in the database.")
+
+    user_id = f"usr_{uuid.uuid4().hex[:10]}"
+    officer_doc = {
+        "user_id": user_id,
+        "email": email,
+        "password_hash": hash_officer_password(password),
+        "name": name,
+        "role": role,
+        "role_title": f"Legal Metrology {role}",
+        "badge_id": badge_id,
+        "jurisdiction": jurisdiction,
+        "clearance_level": f"{role} Statutory Clearance",
+        "avatar_color": "bg-emerald-700 text-white" if role == "Officer" else "bg-amber-700 text-white" if role == "Senior Officer" else "bg-indigo-700 text-white",
+        "badge_bg": "bg-emerald-50" if role == "Officer" else "bg-amber-50" if role == "Senior Officer" else "bg-indigo-50",
+        "badge_border": "border-emerald-300" if role == "Officer" else "border-amber-300" if role == "Senior Officer" else "border-indigo-300",
+        "badge_text": "text-emerald-800" if role == "Officer" else "text-amber-800" if role == "Senior Officer" else "text-indigo-800",
+        "capabilities": [
+            "Multi-image label OCR inspection",
+            "Rule 6(1) statutory compliance scoring",
+            "Preservative & nutritional HFSS audit",
+            "Export PDF statutory audit scorecards"
+        ],
+        "created_at": datetime.utcnow().isoformat()
+    }
+
+    if collection is not None:
+        collection.insert_one(dict(officer_doc))
+
+    _in_memory_officers[email] = officer_doc
+    return _sanitize_officer_doc(officer_doc)
+
+
+def authenticate_officer(email: str, password: str) -> dict:
+    clean_email = (email or "").strip().lower()
+    if not clean_email:
+        raise ValueError("Email address is required.")
+    if not password:
+        raise ValueError("Password is required.")
+
+    # Populate in-memory defaults if not initialized
+    if not _in_memory_officers:
+        for off in DEFAULT_OFFICERS:
+            d = dict(off)
+            d["password_hash"] = hash_officer_password(d.pop("password"))
+            _in_memory_officers[d["email"]] = d
+
+    officer_doc = None
+    collection = get_officers_collection()
+    if collection is not None:
+        officer_doc = collection.find_one({"email": clean_email})
+
+    if officer_doc is None:
+        officer_doc = _in_memory_officers.get(clean_email)
+
+    if officer_doc is None:
+        raise ValueError("Officer account is not registered in the database. Please register first or check your email.")
+
+    stored_hash = officer_doc.get("password_hash")
+    if not stored_hash or not verify_officer_password(password, stored_hash):
+        raise ValueError("Invalid password for registered officer account.")
+
+    sanitized = _sanitize_officer_doc(officer_doc)
+    sanitized["token"] = f"gov_token_{uuid.uuid4().hex}"
+    return sanitized
+
+
+def list_registered_officers() -> list[dict]:
+    collection = get_officers_collection()
+    if collection is not None:
+        docs = list(collection.find({}, {"_id": 0, "password_hash": 0, "password": 0}))
+        if docs:
+            return [_sanitize_officer_doc(d) for d in docs]
+
+    if not _in_memory_officers:
+        for off in DEFAULT_OFFICERS:
+            d = dict(off)
+            d["password_hash"] = hash_officer_password(d.pop("password"))
+            _in_memory_officers[d["email"]] = d
+
+    return [_sanitize_officer_doc(d) for d in _in_memory_officers.values()]
 # ADD — end

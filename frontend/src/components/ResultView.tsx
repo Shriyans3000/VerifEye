@@ -328,7 +328,13 @@ export const ResultView: React.FC<ResultViewProps> = ({ data, imageFile }) => {
       {/* Prominent Evidence-Linked Inspection Viewer */}
       <EvidenceViewer
         imageFile={imageFile}
-        imageUrl={data.image_urls && data.image_urls.length > 0 ? data.image_urls[0] : undefined}
+        imageUrl={
+          data.image_urls && data.image_urls.length > 0
+            ? data.image_urls[0]
+            : data.image_file_ids && data.image_file_ids.length > 0
+            ? `/api/images/${data.image_file_ids[0]}`
+            : '/samples/test_label.jpeg'
+        }
         selectedCheck={selectedCheck}
         selectedCheckIndex={selectedCheckIndex}
         allChecks={checks}

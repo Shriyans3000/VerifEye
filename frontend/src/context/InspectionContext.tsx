@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { AnalyzeResponse } from '../types/api';
-import { analyzePackageLabel } from '../services/api';
+import { analyzePackageLabel, getImageUrl } from '../services/api';
 
 interface InspectionContextType {
   currentInspection: AnalyzeResponse | null;
@@ -45,20 +45,32 @@ export const InspectionProvider: React.FC<{ children: ReactNode }> = ({ children
   };
 
   const setInspectionData = (data: AnalyzeResponse, files?: File | File[]) => {
-    setCurrentInspection(data);
+    // Ensure image_urls are always populated — reconstruct from image_file_ids if missing
+    const enrichedData = { ...data };
+    if (
+      (!enrichedData.image_urls || enrichedData.image_urls.length === 0) &&
+      enrichedData.image_file_ids &&
+      enrichedData.image_file_ids.length > 0
+    ) {
+      enrichedData.image_urls = enrichedData.image_file_ids.map(
+        (fid) => getImageUrl(fid)
+      );
+    }
+
+    setCurrentInspection(enrichedData);
     const arr = files ? (Array.isArray(files) ? files : [files]) : [];
     setImageFiles(arr);
     setErrorMessage(null);
 
     // If files are missing or empty, but data has image_urls from MongoDB, rehydrate real File objects
-    if (data.image_urls && data.image_urls.length > 0 && (arr.length === 0 || arr.every((f) => f.size === 0))) {
+    if (enrichedData.image_urls && enrichedData.image_urls.length > 0 && (arr.length === 0 || arr.every((f) => f.size === 0))) {
       Promise.all(
-        data.image_urls.map(async (url, idx) => {
+        enrichedData.image_urls.map(async (url, idx) => {
           try {
             const res = await fetch(url);
             if (!res.ok) return null;
             const blob = await res.blob();
-            const filename = (data.filename && idx === 0) ? data.filename : `package_label_${idx + 1}.png`;
+            const filename = (enrichedData.filename && idx === 0) ? enrichedData.filename : `package_label_${idx + 1}.png`;
             return new File([blob], filename, { type: blob.type || 'image/png' });
           } catch {
             return null;

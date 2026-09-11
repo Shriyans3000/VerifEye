@@ -12,6 +12,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { GuidelinesPage } from './pages/GuidelinesPage';
 import { PreservativesGuidePage } from './pages/PreservativesGuidePage';
 import { AboutPage } from './pages/AboutPage';
+import { OfficerLoginPage } from './pages/OfficerLoginPage';
 
 export const App: React.FC = () => {
   return (
@@ -21,6 +22,10 @@ export const App: React.FC = () => {
           {/* Public National Landing Page */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/landing" element={<LandingPage />} />
+
+          {/* Standalone Official Officer Login & Database Registration Portal */}
+          <Route path="/login" element={<OfficerLoginPage />} />
+          <Route path="/officer-login" element={<OfficerLoginPage />} />
 
           {/* Officer Enforcement Workspace Routes (Inside AppShell) */}
           <Route

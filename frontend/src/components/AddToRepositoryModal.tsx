@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   X,
@@ -60,6 +61,9 @@ export const AddToRepositoryModal: React.FC<AddToRepositoryModalProps> = ({
       return;
     }
 
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const loadRepos = async () => {
       setLoading(true);
       setErrorMessage(null);
@@ -96,6 +100,10 @@ export const AddToRepositoryModal: React.FC<AddToRepositoryModalProps> = ({
     };
 
     loadRepos();
+
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
   }, [isOpen, brandNameDetected, data.product]);
 
   if (!isOpen) return null;
@@ -163,8 +171,10 @@ export const AddToRepositoryModal: React.FC<AddToRepositoryModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-start sm:items-center justify-center p-3 sm:p-4 pt-4 sm:pt-8 pb-8 animate-fade-in">
       <div className="bg-white rounded-xl shadow-2xl border border-slate-300 max-w-2xl w-full overflow-hidden transition-all transform scale-100">
         {/* Top Header */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
@@ -534,6 +544,7 @@ export const AddToRepositoryModal: React.FC<AddToRepositoryModalProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

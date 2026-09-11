@@ -221,4 +221,55 @@ export const fetchReportsInDirectory = async (directory: string): Promise<SavedR
     return [];
   }
 };
+
+export interface OfficerAuthResponse {
+  success: boolean;
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    roleTitle: string;
+    badgeId: string;
+    jurisdiction: string;
+    clearanceLevel: string;
+    avatarColor?: string;
+    badgeBg?: string;
+    badgeBorder?: string;
+    badgeText?: string;
+    capabilities?: string[];
+    token?: string;
+  };
+}
+
+export const loginOfficer = async (credentials: {
+  email: string;
+  password: string;
+}): Promise<OfficerAuthResponse> => {
+  const response = await client.post<OfficerAuthResponse>('/auth/login', credentials);
+  return response.data;
+};
+
+export const registerOfficer = async (data: {
+  email: string;
+  password: string;
+  name: string;
+  role?: string;
+  badge_id?: string;
+  jurisdiction?: string;
+}): Promise<OfficerAuthResponse> => {
+  const response = await client.post<OfficerAuthResponse>('/auth/register', data);
+  return response.data;
+};
+
+export const fetchRegisteredOfficers = async (): Promise<any[]> => {
+  try {
+    const response = await client.get<{ success: boolean; officers: any[] }>('/auth/officers');
+    return response.data?.officers || [];
+  } catch (err) {
+    console.error('Failed to fetch registered officers:', err);
+    return [];
+  }
+};
 // ADD — end

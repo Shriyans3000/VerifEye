@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   ShieldCheck,
@@ -728,6 +729,26 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
   imageFile,
 }) => {
   const printRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  // Lock background body scroll and ensure scroll position starts at top when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+
+      if (backdropRef.current) {
+        backdropRef.current.scrollTop = 0;
+      }
+      if (printRef.current) {
+        printRef.current.scrollTop = 0;
+      }
+
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [isOpen]);
 
   // MongoDB Directory persistence state
   const [isSavePromptOpen, setIsSavePromptOpen] = useState(false);
@@ -960,8 +981,11 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
     new Map(allEvidence.map((e) => [e.ocr_id, e])).values()
   );
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 print:p-0 print:bg-white print:static print:overflow-visible modal-backdrop-animate">
+  return createPortal(
+    <div
+      ref={backdropRef}
+      className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950/80 backdrop-blur-xs flex items-start justify-center p-2 sm:p-4 pt-3 sm:pt-5 pb-8 print:p-0 print:bg-white print:static print:overflow-visible"
+    >
       {/* Precision Print Engine Styles: Hides entire web application and prints ONLY this 2-page report */}
       <style>{`
         @media print {
@@ -1022,7 +1046,7 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
       `}</style>
 
       {/* Modal Container */}
-      <div className="bg-white rounded-lg shadow-2xl border border-slate-300 max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden animate-scale-in print:max-w-none print:max-h-none print:shadow-none print:border-none print:static print:overflow-visible">
+      <div className="bg-white rounded-xl shadow-2xl border border-slate-300 max-w-4xl w-full max-h-[94vh] flex flex-col overflow-hidden animate-scale-in print:max-w-none print:max-h-none print:shadow-none print:border-none print:static print:overflow-visible">
         {/* Top Control Bar (Screen Only - Hidden during print) */}
         <div className="bg-slate-900 text-white px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 gap-2 print:hidden">
           <div className="flex items-center space-x-2">
@@ -1807,6 +1831,7 @@ export const InspectionReportModal: React.FC<InspectionReportModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

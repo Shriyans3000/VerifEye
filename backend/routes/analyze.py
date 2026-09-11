@@ -164,7 +164,7 @@ async def analyze_label(
         logger.exception(f"Unexpected error during analysis of {filenames}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while analyzing the image."
+            detail=f"An unexpected error occurred while analyzing the image: {str(e)}"
         )
     finally:
         for tf_path in temp_files_to_cleanup:

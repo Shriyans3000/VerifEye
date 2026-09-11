@@ -31,23 +31,30 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
     height: 0,
   });
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
+  const [imageError, setImageError] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
-  // Local object URL for the uploaded file with cleanup or persisted MongoDB imageUrl
-  const imageSrc = useMemo(() => {
+  // Local object URL for the uploaded file, persisted MongoDB imageUrl, or sample label fallback
+  const preferredSrc = useMemo(() => {
     if (imageFile && imageFile.size > 0) return URL.createObjectURL(imageFile);
-    return imageUrl || null;
+    return imageUrl || '/samples/test_label.jpeg';
   }, [imageFile, imageUrl]);
 
+  const [currentSrc, setCurrentSrc] = useState<string>(preferredSrc);
+
+  // Reset error/loaded state when image source changes
   useEffect(() => {
+    setCurrentSrc(preferredSrc);
+    setImageError(false);
+    setImageLoaded(false);
     return () => {
-      if (imageSrc && imageSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(imageSrc);
+      if (preferredSrc && preferredSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(preferredSrc);
       }
     };
-  }, [imageSrc]);
+  }, [preferredSrc]);
 
   // Aggregate all unique background OCR evidence items across all checks
   const allEvidenceItems = useMemo(() => {
@@ -195,7 +202,7 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
             ref={containerRef}
             className="relative w-full h-full overflow-auto flex items-center justify-center rounded border border-slate-800 bg-slate-900/60 p-2"
           >
-            {imageSrc ? (
+            {currentSrc ? (
               /* Transformed rendering container: Both image and overlay scale identically */
               <div
                 style={{
@@ -205,13 +212,27 @@ export const EvidenceViewer: React.FC<EvidenceViewerProps> = ({
                 }}
                 className="relative inline-block select-none max-w-full"
               >
-                <img
-                  ref={imageRef}
-                  src={imageSrc}
-                  alt="Inspected Package Commodity"
-                  onLoad={handleImageLoad}
-                  className="max-h-[500px] w-auto object-contain block mx-auto pointer-events-none"
-                />
+                {imageError ? (
+                  <div className="text-center text-slate-400 py-16 space-y-2">
+                    <p className="text-xs font-semibold">Image could not be loaded from the database.</p>
+                    <p className="text-[11px] text-slate-500">The original package label image may have been removed or is temporarily unavailable.</p>
+                  </div>
+                ) : (
+                  <img
+                    ref={imageRef}
+                    src={currentSrc}
+                    alt="Inspected Package Commodity"
+                    onLoad={handleImageLoad}
+                    onError={() => {
+                      if (currentSrc !== '/samples/test_label.jpeg') {
+                        setCurrentSrc('/samples/test_label.jpeg');
+                      } else {
+                        setImageError(true);
+                      }
+                    }}
+                    className="max-h-[500px] w-auto object-contain block mx-auto pointer-events-none"
+                  />
+                )}
 
                 {imageLoaded && (
                   <EvidenceOverlay

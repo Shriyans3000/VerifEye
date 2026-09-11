@@ -755,10 +755,7 @@ export const RepositoryPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              setInspectionData(
-                                item,
-                                new File([], item.filename || 'image.png')
-                              );
+                              setInspectionData(item);
                               navigate('/inspection/result');
                             }}
                             className="inline-flex items-center px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-bold shadow-2xs transition cursor-pointer"

@@ -10,6 +10,7 @@ import {
   Scale, 
   ArrowRight, 
   Award,
+  UserCheck,
 } from 'lucide-react';
 import { InteractiveDemoSection } from '../components/InteractiveDemoSection';
 import { WorkflowSection } from '../components/WorkflowSection';
@@ -59,12 +60,16 @@ export const LandingPage: React.FC = () => {
 
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => navigate('/dashboard')}
-              className="px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+              type="button"
+              id="officer-signin-nav-btn"
+              onClick={() => navigate('/login')}
+              className="px-3.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 hover:border-slate-400 text-xs font-bold text-slate-700 transition-colors flex items-center space-x-1.5 cursor-pointer shadow-2xs"
             >
-              Officer Console
+              <UserCheck className="w-3.5 h-3.5 text-amber-700" />
+              <span>Officer Sign In</span>
             </button>
             <button
+              type="button"
               onClick={() => navigate('/dashboard')}
               className="px-4 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-md shadow-amber-600/30 transition-all flex items-center space-x-1.5 cursor-pointer"
             >
