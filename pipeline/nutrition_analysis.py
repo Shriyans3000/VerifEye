@@ -260,6 +260,21 @@ def extract_nutrition_from_product(product: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _parse_float_safe(val: Any) -> Optional[float]:
+    if val is None:
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        cleaned = re.search(r"([0-9]+(?:\.[0-9]+)?)", val.strip())
+        if cleaned:
+            try:
+                return float(cleaned.group(1))
+            except (ValueError, TypeError):
+                return None
+    return None
+
+
 def analyze_nutrition(
     product: Dict[str, Any],
     ocr_data: Optional[List[Dict[str, Any]]] = None
@@ -282,17 +297,15 @@ def analyze_nutrition(
     ocr_raw, ocr_norm, ocr_ev = extract_nutrition_from_ocr(ocr_data or [])
 
     # Scale factor from direct product if basis declared
-    direct_basis = direct_nut.get("basis_g")
-    direct_scale = (100.0 / float(direct_basis)) if direct_basis and float(direct_basis) > 0 else 1.0
+    direct_basis = _parse_float_safe(direct_nut.get("basis_g"))
+    direct_scale = (100.0 / direct_basis) if direct_basis and direct_basis > 0 else 1.0
 
     def get_norm_val(key: str) -> Optional[float]:
         # Check direct product first
         if direct_nut.get(key) is not None:
-            try:
-                raw_v = float(direct_nut[key])
+            raw_v = _parse_float_safe(direct_nut[key])
+            if raw_v is not None:
                 return round(raw_v * direct_scale, 2)
-            except (ValueError, TypeError):
-                pass
         # Fallback to normalized OCR value
         if ocr_norm.get(key) is not None:
             return ocr_norm[key]
@@ -300,10 +313,9 @@ def analyze_nutrition(
 
     def get_raw_val(key: str) -> Optional[float]:
         if direct_nut.get(key) is not None:
-            try:
-                return float(direct_nut[key])
-            except (ValueError, TypeError):
-                pass
+            raw_v = _parse_float_safe(direct_nut[key])
+            if raw_v is not None:
+                return raw_v
         if ocr_raw.get(key) is not None:
             return ocr_raw[key]
         return None
